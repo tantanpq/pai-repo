@@ -68,7 +68,10 @@ cab-NNNN        e.g. cab-0001, cab-0042
   `claim_mf_…` / `disp_mf_…` (HOME run loop), `claim_<uuid>` (Claim Service).
 - The ID is opaque: it encodes no work-area name, no date, no system, and
   **no content** (identity contract rule 3 — an ID is never derived from the
-  object's content; the sequence is assigned at mint time only).
+  object's content; the sequence is assigned at mint time only). The same
+  opacity binds grouping values throughout registry history: `cab-NNNN`
+  is the only grouping value a history line carries — no descriptive
+  work-area label appears there (§6 history rule).
 
 ## 3. Minting authority — the Cabinet Registrar
 
@@ -132,7 +135,6 @@ Event shapes (one JSON object per line, append-only):
 
 ```
 {"type":"MINT","cabinet_id":"cab-0001","at":"<iso8601>","actor":"<lane/program>",
- "work_area":{"slug":"simlab-paid-test","domain":"system"},
  "reason":"new-work-area","prev_hash":"<sha256 of previous line>"}
 
 {"type":"LINK","cabinet_id":"cab-0001","at":"<iso8601>","actor":"<lane/program>",
@@ -218,8 +220,11 @@ Event rules (normative):
 - `kind` records the member's own object kind (e.g. `planning-task`,
   `epistemic-claim`, `execution-claim`, `dispatch`, `work-unit`) and is
   never rewritten to a common kind — grouping is not merging.
-- `domain` uses the plan's controlled tag vocabulary (`domain:` axis,
-  plan §5). No free tags.
+- A work area's `domain` classification uses the plan's controlled tag
+  vocabulary (`domain:` axis, plan §5) — no free tags — and, like its
+  name/slug and title, is recorded **only in `INDEX.md` and
+  projections**, never in a registry history line (§6 history rule:
+  grouping values in history are opaque).
 - Every LINK carries resolvable, immutable-segment evidence and a reason
   (identity contract rule 6 applied to links: a link without a resolvable
   anchor is an orphan and MUST NOT be recorded). Every UNLINK carries
@@ -324,24 +329,35 @@ contract rules 4 and 6):
   Namespace access to the registry itself is scoped accordingly — the
   registry is not a house-readable side channel around a `private` or
   `secret-pointer` member.
-- Metadata fields are content-bearing and constrained accordingly:
-  `slug` / `title` / `reason` / `evidence` carry no record content and no
-  secrets (rule 4's `secret-pointer` discipline: pointers, never the
-  secret), and are themselves subject to the inherited privacy level —
-  an association or evidence path can disclose sensitive information
-  even when no source body is present. In registry history lines these
-  fields are bound further by the history rule below — tombstone-grade
-  by construction.
+- Metadata fields are content-bearing and constrained accordingly.
+  The history-line fields `reason` / `evidence` carry no record content
+  and no secrets (rule 4's `secret-pointer` discipline: pointers, never
+  the secret), and are themselves subject to the inherited privacy
+  level — an association or evidence path can disclose sensitive
+  information even when no source body is present. In registry history
+  lines these fields are bound further by the history rule below —
+  tombstone-grade by construction. A work area's **name/slug, title,
+  and `domain` label are not registry fields at all**: they exist only
+  in `INDEX.md` and projections, inherit the privacy level there, and
+  are purged from those surfaces by the forget operation below.
 - **Forget (rule 6) applies to linkage in the same operation.** When a
   member is forgotten (lifecycle INVALIDATE, reason `forget`): (a) the
   invalidation is recorded; (b) the member's derived entries are **purged
   or invalidated in the same operation** — its memberships disappear from
-  the registry fold, `INDEX.md`, and every projection (§5.1 included),
-  and MINT `slug`/`title`/`reason` or LINK `evidence`/`reason` fields
-  derived from the forgotten record do not remain readable; what remains
-  is tombstone-grade only — (system, ID), forget timestamp, actor — per
-  rule 6(b); (c) post-forget verification (§5, Step 5 of the backfill
-  plan): a default query returns the tombstone, not the membership.
+  the registry fold, `INDEX.md`, and every projection (§5.1 included);
+  the name/slug, title, and `domain` entries under which it appeared in
+  `INDEX.md` and projections are purged in the same operation (registry
+  history lines carry no such labels at all — history rule below); and
+  LINK/UNLINK `evidence`/`reason` values derived from the forgotten
+  record do not remain readable in the operative fold. What remains on
+  operative surfaces is tombstone-grade only — (system, ID), forget
+  timestamp, actor — per rule 6(b); (c) post-forget verification (§5,
+  Step 5 of the backfill plan): a default query returns the tombstone,
+  not the membership — **and retained history is verified too**: every
+  retained Git object of every registry file (`REGISTRY.jsonl`,
+  `INDEX.md`, any projection committed to this repo) is checked for the
+  forgotten member, and any beyond-tombstone payload found there is an
+  exposure under the history rule below, not a pass.
   Append-only Git history alone does **not** make retained sensitive
   metadata compliant: the operative fold, index, and projections must
   not expose it — and the audit history itself is bound by the same
@@ -367,9 +383,6 @@ contain only:
   and, for LINK/UNLINK, `relation` / `corrects`;
 - the member's (system, ID) pair and `kind` — exactly the identifiers
   a rule 6(b) tombstone itself carries;
-- for MINT, the Registrar-assigned `work_area.slug` and `domain` —
-  grouping labels assigned by the Registrar, never copied or
-  paraphrased from a member record;
 - `reason` as a **reason code** from the controlled vocabulary in §4,
   optionally followed by `@<sha256>` — the digest of a fuller rationale
   note retained in the owning namespace under the inherited privacy
@@ -382,22 +395,51 @@ contain only:
   verification re-reads the segment and checks the digest (backfill
   plan Step 5, check 2, is satisfied by this binding).
 
-Human-readable work-area **titles** and descriptive labels never
-appear in history lines; they live only in `INDEX.md` and projections
-— current-state surfaces the forget operation purges in the same
-operation. An event whose fields cannot be expressed within this
-inventory fails validation and is not appended (§4): history is made
-tombstone-grade at write time, not redacted after the fact. Because no
-member content, title, association text, or raw evidence path ever
-enters a Git object, a later forget leaves nothing in history beyond
+**Grouping values in history are opaque.** The only grouping value a
+history line carries is `cabinet_id` itself. No history line — MINT
+included — carries a work-area slug, name, title, or `domain` label.
+The reason is the content, not the authorship: a descriptive label the
+Registrar coins itself (say, for the SimLab paid-test area) is still
+readable association text sitting in immutable history; that the
+Registrar chose the words rather than copying or paraphrasing a member
+record does not make it tombstone-grade, and independent origination
+does not prevent it from disclosing a sensitive association once a
+member is linked under it. A descriptive grouping value in a history
+line therefore fails validation like any other out-of-inventory field.
+Human-readable names/slugs and the `domain` classification live only
+on the purgeable surfaces — `INDEX.md` and projections — where the
+forget operation purges them in the same operation.
+
+An event whose fields cannot be expressed within this inventory
+fails validation and is not appended (§4): registry history is made
+tombstone-grade at write time, not redacted after the fact — no
+member content, descriptive association text, or raw evidence path
+ever enters a registry line. `INDEX.md` and committed projections
+stand differently: forget purges their **current** surfaces in the
+same operation, but their **historical Git blobs are retained
+history**, and they are inside the exposure scope below — a title or
+slug surviving in an old `INDEX.md` blob is an exposure to be blocked
+and treated, never a compliant remainder. With the inventory and
+that scope both in force, a completed forget leaves nothing in
+retained history — registry lines or registry-file blobs — beyond
 what rule 6(b) permits a tombstone to carry.
 
 **Exposure: block, then treatment.** If non-tombstone-grade metadata
-deriving from a member is nevertheless present in accepted history
+deriving from a member is nevertheless present in retained history
 when a forget lands — legacy lines predating this rule, or a
 validation escape — the forget is not complete, and the exposure is
 handled as a block, never as a note:
 
+- **Scope: every retained Git object of every registry file** (fix
+  round 3). "Retained history" in this subsection means the
+  `REGISTRY.jsonl` accepted history **and** every historical Git blob
+  of `INDEX.md` **and** of any projection file committed to this
+  repo. The exposure scan, the block, the rule-7-authorized
+  treatment, and the post-treatment re-scan all cover those objects
+  exactly as they cover accepted-history lines: purging `INDEX.md`'s
+  current entries does not reach a title in an earlier committed
+  version of it, so that blob is scanned, blocked on, treated, and
+  re-scanned like any offending registry line.
 - The **affected path is BLOCKED** from the moment the exposure is
   identified: no new events for the affected Cabinet, no projection
   builds or stamps derived from it, no join depending on it proceeds,
@@ -407,14 +449,15 @@ handled as a block, never as a note:
 - The only exit is an executed **and verified history treatment**: a
   recorded owner decision under contract rule 7 authorizing the
   specific treatment of the affected objects (history rewrite
-  replacing the offending lines with tombstone-grade lines, or removal
-  of the affected objects — an owner decision may authorize the
-  deletion this requires). The Registrar executes the treatment; the
+  replacing the offending lines or blobs with tombstone-grade content,
+  or removal of the affected objects — an owner decision may authorize
+  the deletion this requires). The Registrar executes the treatment; the
   treated history is re-folded and re-accepted under §3, with the
   decision and the treatment recorded alongside the new accepted head;
-  and verification re-scans the treated history end to end — no
-  payload beyond tombstone-grade for the forgotten member may remain
-  before the block lifts. This spec **requires** the treatment as the
+  and verification re-scans the treated history end to end — every
+  retained Git object of every registry file in the scope above — so
+  no payload beyond tombstone-grade for the forgotten member may
+  remain before the block lifts. This spec **requires** the treatment as the
   sole compliant path; naming a future owner decision does not
   substitute for it, and absent that decision the block — not silent
   non-conformance — is the state of the path.
