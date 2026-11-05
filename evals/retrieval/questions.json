@@ -1,0 +1,369 @@
+{
+ "meta": {
+  "created": "2026-11-05",
+  "extends": "pai-query-layer pilot's 10 questions (SPEC_V1 S6.2), same correctness method: gold substring must appear in the union of returned answer context",
+  "gold_rule": "every gold string is quoted verbatim from the live source file named in gold_source at set-creation time; freshness_probe questions have gold that entered or changed in its source on 2026-11-05, so a stale index fails them",
+  "old_path": "sum of est_tokens over old_files (whole files read into context); for the spine .db, the text dump of the tasks table (the scan cost of finding one task among all rows without the index)",
+  "title": "PAI retrieval golden set — Phase 2 (filing-cabinet plan gate, section 8)",
+  "token_estimator": "ceil(chars/4) for both paths (declared estimator, identical both sides)"
+ },
+ "questions": [
+  {
+   "gold": "1,010 to 10",
+   "gold_source": "pai-continuity/claim-register/claims.jsonl · Suno-cancelled claim (2026-11-03)",
+   "id": "Q01",
+   "kind": "claim",
+   "limit": 3,
+   "old_files": [
+    "/home/hatch/workspace/pai-continuity/claim-register/claims.jsonl"
+   ],
+   "q": "Suno Pro cancelled credits burned down"
+  },
+  {
+   "gold": "verdict due 2026-11-14",
+   "gold_source": "pai-continuity/claim-register/claims.jsonl · TokenEconomizer pilot claim",
+   "id": "Q02",
+   "kind": "claim",
+   "limit": 3,
+   "old_files": [
+    "/home/hatch/workspace/pai-continuity/claim-register/claims.jsonl"
+   ],
+   "q": "TokenEconomizer pilot MSI Codex verdict due"
+  },
+  {
+   "gold": "GD&T strict 6/24 = 25.0%",
+   "gold_source": "pai-continuity/claim-register/claims.jsonl · TOM capability MEASURED claim (2026-11-01)",
+   "id": "Q03",
+   "kind": "claim",
+   "limit": 3,
+   "old_files": [
+    "/home/hatch/workspace/pai-continuity/claim-register/claims.jsonl"
+   ],
+   "q": "TOM capability gate GD&T strict base RAG corpus"
+  },
+  {
+   "gold": "$49 Stripe link live",
+   "gold_source": "pai-continuity/claim-register/claims.jsonl · C-0128",
+   "id": "Q04",
+   "kind": "claim",
+   "limit": 3,
+   "old_files": [
+    "/home/hatch/workspace/pai-continuity/claim-register/claims.jsonl"
+   ],
+   "q": "simlab-core public package Stripe link live"
+  },
+  {
+   "gold": "suno-cp is RETIRED",
+   "gold_source": "pai-continuity/claim-register/claims.jsonl · suno-cp retired claim",
+   "id": "Q05",
+   "kind": "claim",
+   "limit": 3,
+   "old_files": [
+    "/home/hatch/workspace/pai-continuity/claim-register/claims.jsonl"
+   ],
+   "q": "suno-cp retired live route sunogen worker"
+  },
+  {
+   "gold": "adopt-to-installed conversion of 1/3",
+   "gold_source": "pai-continuity/claim-register/claims.jsonl · radar system audit claim (2026-11-02)",
+   "id": "Q06",
+   "kind": "claim",
+   "limit": 3,
+   "old_files": [
+    "/home/hatch/workspace/pai-continuity/claim-register/claims.jsonl"
+   ],
+   "q": "radar audit adopt-to-installed conversion"
+  },
+  {
+   "gold": "7-day reconciliation window",
+   "gold_source": "spine.db tasks · 'Spine 1A shadow run - VM/capsule unit'",
+   "id": "Q07",
+   "kind": "task",
+   "limit": 2,
+   "old_files": [
+    "/home/hatch/workspace/pai-continuity/spine/build/shadow-1a/runtime/spine.db"
+   ],
+   "q": "Spine 1A shadow run reconciliation window"
+  },
+  {
+   "gold": "PENDING-ANCHOR",
+   "gold_source": "spine.db tasks · 'Book scoring v2 - remainder PENDING-ANCHOR'",
+   "id": "Q08",
+   "kind": "task",
+   "limit": 2,
+   "old_files": [
+    "/home/hatch/workspace/pai-continuity/spine/build/shadow-1a/runtime/spine.db"
+   ],
+   "q": "Book scoring v2 remainder PENDING-ANCHOR"
+  },
+  {
+   "gold": "MicroVu",
+   "gold_source": "spine.db tasks · 'Cho Tan: mau MicroVu truoc 20/11'",
+   "id": "Q09",
+   "kind": "task",
+   "limit": 2,
+   "old_files": [
+    "/home/hatch/workspace/pai-continuity/spine/build/shadow-1a/runtime/spine.db"
+   ],
+   "q": "MicroVu mẫu trước 20/11 chờ Tân"
+  },
+  {
+   "gold": "trần lũy kế C4",
+   "gold_source": "trading-research-2026-10/STATUS.md line 5",
+   "id": "Q10",
+   "kind": "status",
+   "limit": 2,
+   "old_files": [
+    "/home/hatch/workspace/trading-research-2026-10/STATUS.md"
+   ],
+   "q": "trading spec khóa trần lũy kế C4"
+  },
+  {
+   "gold": "1.255 phiên",
+   "gold_source": "trading-research-2026-10/STATUS.md line 4",
+   "id": "Q11",
+   "kind": "status",
+   "limit": 2,
+   "old_files": [
+    "/home/hatch/workspace/trading-research-2026-10/STATUS.md"
+   ],
+   "q": "trading nền dữ liệu 10 mã SPY QQQ phiên ngày"
+  },
+  {
+   "gold": "memory_consolidate.py",
+   "gold_source": "second-life/STATUS.md line 7",
+   "id": "Q12",
+   "kind": "status",
+   "limit": 2,
+   "old_files": [
+    "/home/hatch/workspace/second-life/STATUS.md"
+   ],
+   "q": "DeepTutor borrow Slice 1 memory trace L1 L2 L3"
+  },
+  {
+   "freshness_probe": true,
+   "gold": "frozen v2 strict 12/33",
+   "gold_source": "second-life/STATUS.md line 23 — DONE closure appended 2026-11-05 06:29 PT (earlier text said BUILD XONG / Codex FAIL)",
+   "id": "Q13",
+   "kind": "status",
+   "limit": 2,
+   "old_files": [
+    "/home/hatch/workspace/second-life/STATUS.md"
+   ],
+   "q": "BORROW Slice 2 DONE frozen v2 strict"
+  },
+  {
+   "gold": "T9–T18",
+   "gold_source": "cmm-video/STATUS.md line 5",
+   "id": "Q14",
+   "kind": "status",
+   "limit": 2,
+   "old_files": [
+    "/home/hatch/workspace/cmm-video/STATUS.md"
+   ],
+   "q": "ngân hàng script CMM T9 T18 khóa"
+  },
+  {
+   "gold": "RAW_PROMPTS_TAN_PHOTO_2026-11-02.md",
+   "gold_source": "zmedia-image/STATUS.md line 4",
+   "id": "Q15",
+   "kind": "status",
+   "limit": 2,
+   "old_files": [
+    "/home/hatch/workspace/zmedia-image/STATUS.md"
+   ],
+   "q": "mảng ảnh thước gốc RAW_PROMPTS"
+  },
+  {
+   "gold": "giữ nguyên bản gốc",
+   "gold_source": "zmedia-image/STATUS.md line 8",
+   "id": "Q16",
+   "kind": "status",
+   "limit": 2,
+   "old_files": [
+    "/home/hatch/workspace/zmedia-image/STATUS.md"
+   ],
+   "q": "bộ Monterey đóng giữ nguyên bản gốc"
+  },
+  {
+   "freshness_probe": true,
+   "gold": "HHo3@ametek",
+   "gold_source": "MEMORY.md · AMETEK bullet — ADP registration fact recorded 2026-11-05",
+   "id": "Q17",
+   "kind": "memory",
+   "limit": 2,
+   "old_files": [
+    "/home/hatch/MEMORY.md"
+   ],
+   "q": "ADP User ID đăng nhập eTIME Employee ID"
+  },
+  {
+   "freshness_probe": true,
+   "gold": "Canon EOS 90D",
+   "gold_source": "MEMORY.md · 'MÁY ẢNH CỦA TÂN (05/11)' bullet — added 2026-11-05",
+   "id": "Q18",
+   "kind": "memory",
+   "limit": 2,
+   "old_files": [
+    "/home/hatch/MEMORY.md"
+   ],
+   "q": "máy ảnh Canon EOS 90D đã mua ống kính"
+  },
+  {
+   "gold": "169 KU",
+   "gold_source": "MEMORY.md · TOM (Second Life) bullet",
+   "id": "Q19",
+   "kind": "memory",
+   "limit": 2,
+   "old_files": [
+    "/home/hatch/MEMORY.md"
+   ],
+   "q": "TOM corpus 169 KU kiểm chứng RAG"
+  },
+  {
+   "gold": "ĐÃ HỦY",
+   "gold_source": "MEMORY.md · 'SUNO PRO — ĐÃ HỦY (03/11)' bullet",
+   "id": "Q20",
+   "kind": "memory",
+   "limit": 2,
+   "old_files": [
+    "/home/hatch/MEMORY.md"
+   ],
+   "q": "Suno Pro hủy auto-renew về free"
+  },
+  {
+   "gold": "45mm f/1.8",
+   "gold_source": "goals/b-n-l-b-olympus-pen-e-p5-3-ng-k-nh/GOAL.md line 6",
+   "id": "Q21",
+   "kind": "goal",
+   "limit": 1,
+   "old_files": [
+    "/home/hatch/workspace/goals/b-n-l-b-olympus-pen-e-p5-3-ng-k-nh/GOAL.md"
+   ],
+   "q": "Olympus PEN E-P5 kit ống kính 45mm"
+  },
+  {
+   "gold": "$259",
+   "gold_source": "goals/b-n-l-b-olympus-pen-e-p5-3-ng-k-nh/GOAL.md · Facebook Marketplace section",
+   "id": "Q22",
+   "kind": "goal",
+   "limit": 1,
+   "old_files": [
+    "/home/hatch/workspace/goals/b-n-l-b-olympus-pen-e-p5-3-ng-k-nh/GOAL.md"
+   ],
+   "q": "Olympus body Facebook Marketplace giá"
+  },
+  {
+   "gold": "gánh phí ~13%",
+   "gold_source": "goals/b-n-l-b-olympus-pen-e-p5-3-ng-k-nh/GOAL.md line 6 (eBay markup fact)",
+   "id": "Q23",
+   "kind": "goal",
+   "limit": 1,
+   "old_files": [
+    "/home/hatch/workspace/goals/b-n-l-b-olympus-pen-e-p5-3-ng-k-nh/GOAL.md"
+   ],
+   "q": "Olympus giá eBay cao hơn gánh phí"
+  },
+  {
+   "gold": "lờn",
+   "gold_source": "goals/b-n-l-b-olympus-pen-e-p5-3-ng-k-nh/GOAL.md line 6 (dial trước hơi lờn, phải khai rõ)",
+   "id": "Q24",
+   "kind": "goal",
+   "limit": 1,
+   "old_files": [
+    "/home/hatch/workspace/goals/b-n-l-b-olympus-pen-e-p5-3-ng-k-nh/GOAL.md"
+   ],
+   "q": "Olympus khiếm khuyết dial trước phải khai"
+  },
+  {
+   "gold": "10/10 pitch",
+   "gold_source": "goals/pai-moats-and-assurance-completion/STATUS.md · Outreach bullet",
+   "id": "Q25",
+   "kind": "goal",
+   "limit": 1,
+   "old_files": [
+    "/home/hatch/workspace/goals/pai-moats-and-assurance-completion/STATUS.md"
+   ],
+   "q": "SimLab outreach pitch đã gửi kênh"
+  },
+  {
+   "gold": "0 sale",
+   "gold_source": "goals/pai-moats-and-assurance-completion/STATUS.md · Doanh thu bullet",
+   "id": "Q26",
+   "kind": "goal",
+   "limit": 1,
+   "old_files": [
+    "/home/hatch/workspace/goals/pai-moats-and-assurance-completion/STATUS.md"
+   ],
+   "q": "SimLab doanh thu sale Stripe watcher"
+  },
+  {
+   "gold": "local pickup San Jose 95126",
+   "gold_source": "goals/b-n-l-b-olympus-pen-e-p5-3-ng-k-nh/GOAL.md line 6 — retargeted replacement for the pilot's Q10: the eBay item number itself lives only in the tracked-item store (no file), see packages/retrieval/README.md",
+   "id": "Q27",
+   "kind": "goal",
+   "limit": 1,
+   "old_files": [
+    "/home/hatch/workspace/goals/b-n-l-b-olympus-pen-e-p5-3-ng-k-nh/GOAL.md"
+   ],
+   "q": "Olympus bán kênh eBay local pickup San Jose"
+  },
+  {
+   "gold": "1,010 to 10",
+   "gold_source": "pai-continuity/claim-register/claims.jsonl · Suno-cancelled claim (cross-kind, no kind filter)",
+   "id": "Q28",
+   "kind": null,
+   "limit": 3,
+   "old_files": [
+    "/home/hatch/workspace/pai-continuity/claim-register/claims.jsonl",
+    "/home/hatch/MEMORY.md"
+   ],
+   "q": "Suno Pro cancelled"
+  },
+  {
+   "gold": "$49",
+   "gold_source": "goals/pai-moats-and-assurance-completion/STATUS.md · 'Stripe product page $49 đang live' (cross-kind control question)",
+   "id": "Q29",
+   "kind": null,
+   "limit": 3,
+   "old_files": [
+    "/home/hatch/workspace/goals/pai-moats-and-assurance-completion/STATUS.md",
+    "/home/hatch/workspace/pai-continuity/claim-register/claims.jsonl"
+   ],
+   "q": "SimLab Core giá Stripe test bán"
+  },
+  {
+   "gold": "2026-11-14",
+   "gold_source": "pai-continuity/claim-register/claims.jsonl · TokenEconomizer pilot claim (cross-kind)",
+   "id": "Q30",
+   "kind": null,
+   "limit": 3,
+   "old_files": [
+    "/home/hatch/workspace/pai-continuity/claim-register/claims.jsonl"
+   ],
+   "q": "TokenEconomizer review verdict hạn"
+  },
+  {
+   "gold": "Tom Manno",
+   "gold_source": "MEMORY.md · AMETEK/ZYGO bullet (cross-kind)",
+   "id": "Q31",
+   "kind": null,
+   "limit": 3,
+   "old_files": [
+    "/home/hatch/MEMORY.md"
+   ],
+   "q": "Zygo bắt đầu Richmond Tom Manno"
+  },
+  {
+   "gold": "07/12/2026",
+   "gold_source": "MEMORY.md · HỌC TẬP bullet (CQI: hạn nộp hồ sơ 07/12/2026)",
+   "id": "Q32",
+   "kind": "memory",
+   "limit": 2,
+   "old_files": [
+    "/home/hatch/MEMORY.md"
+   ],
+   "q": "CQI thi hạn nộp hồ sơ phí"
+  }
+ ]
+}

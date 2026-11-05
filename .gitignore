@@ -17,6 +17,7 @@
 *.pem
 
 # Runtime state (rebuildable indexes, queues, logs, snapshots)
+**/index/
 runtime/
 state/
 **/runtime/
