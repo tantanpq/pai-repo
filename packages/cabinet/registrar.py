@@ -854,9 +854,25 @@ def _all_blob_paths(repo, objects):
     return paths
 
 
+def _in_registry_subtree(path, registry_rel):
+    """Boundary-aware registry-subtree membership (fix round 4,
+    finding C2(d) follow-up): a retained path belongs to the
+    registry scope iff it IS the registry directory or lies anywhere
+    beneath it — `registry_rel + "/"` as a prefix, so descendants
+    (e.g. `registry/archive/PROJECTION.json`) are in scope while a
+    sibling sharing a string prefix (`registry-old/x`) is NOT. A
+    root-relative registry (registry_rel == "") scopes the whole
+    repository."""
+    if not registry_rel:
+        return True
+    return path == registry_rel \
+        or path.startswith(registry_rel + "/")
+
+
 def scan_history(repo_path, registry_rel, system, member_id, needles=()):
     """§6 retained-history verification (fix round 2, finding C2;
-    coverage completed in fix round 3).
+    coverage completed in fix round 3; registry-subtree scope
+    completed in fix round 4).
 
     Checks EVERY retained Git object of every registry file for
     beyond-tombstone payload of the member (system, member_id):
@@ -879,6 +895,14 @@ def scan_history(repo_path, registry_rel, system, member_id, needles=()):
       registry directory in a file kind the scan cannot classify, or
       an unattributed object retaining a derived label — the result
       is a finding: the forget path BLOCKS, never passes.
+    - Registry scope is the whole registry SUBTREE (fix round 4,
+      finding C2(d) follow-up): path selection is boundary-aware
+      subtree membership (`_in_registry_subtree`), not
+      immediate-parent equality — a classified surface or an
+      unclassifiable file at ANY depth beneath the registry
+      directory (e.g. `archive/PROJECTION.json`,
+      `archive/unknown.bin`) is in scope, while a sibling directory
+      sharing a string prefix (`registry-old/`) is not.
 
     READ-ONLY: this function never writes to the repo. Returns a
     JSON-serializable verdict; "blocked" is True exactly when
@@ -895,11 +919,11 @@ def scan_history(repo_path, registry_rel, system, member_id, needles=()):
         blob_paths = paths.get(sha, set())
         registry_paths = sorted(
             p for p in blob_paths
-            if os.path.dirname(p) == registry_rel
+            if _in_registry_subtree(p, registry_rel)
             and os.path.basename(p) in REGISTRY_FILE_BASENAMES)
         unclassified_paths = sorted(
             p for p in blob_paths
-            if os.path.dirname(p) == registry_rel
+            if _in_registry_subtree(p, registry_rel)
             and os.path.basename(p) not in REGISTRY_FILE_BASENAMES)
         if not (registry_paths or unclassified_paths or not blob_paths):
             continue  # attributed to non-registry paths only

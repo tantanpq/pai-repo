@@ -547,6 +547,32 @@ class TestAcceptedRegistryParity(unittest.TestCase):
         self.assertEqual(R.projection_bytes(rebuilt), committed)
 
 
+class TestRegistrySubtreeScope(unittest.TestCase):
+    """Fix round 4 (finding C2(d) follow-up): scan_history selects
+    registry paths by boundary-aware SUBTREE membership, not
+    immediate-parent equality — descendants of the registry
+    directory are in scope; sibling directories sharing a string
+    prefix are not. (End-to-end nested exposure cases live in the
+    qualification history suite, test_forget_history.py.)"""
+
+    def test_subtree_membership_boundaries(self):
+        f = R._in_registry_subtree
+        self.assertTrue(f("registry", "registry"))
+        self.assertTrue(f("registry/INDEX.md", "registry"))
+        self.assertTrue(f("registry/archive/PROJECTION.json",
+                          "registry"))
+        self.assertTrue(f("registry/a/b/c/unknown.bin", "registry"))
+        self.assertFalse(f("registry-old/INDEX.md", "registry"))
+        self.assertFalse(f("registry2/INDEX.md", "registry"))
+        self.assertFalse(f("other/registry/INDEX.md", "registry"))
+        self.assertTrue(f("docs/cabinet-registry/INDEX.md",
+                          "docs/cabinet-registry"))
+        self.assertFalse(f("docs/cabinet-registry-old/INDEX.md",
+                           "docs/cabinet-registry"))
+        # Root-relative registry scopes the whole repository.
+        self.assertTrue(f("any/path/at/all.bin", ""))
+
+
 class TestCli(unittest.TestCase):
     def run_cli(self, *argv):
         env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
