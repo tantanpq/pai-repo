@@ -132,23 +132,22 @@ Event shapes (one JSON object per line, append-only):
 
 ```
 {"type":"MINT","cabinet_id":"cab-0001","at":"<iso8601>","actor":"<lane/program>",
- "work_area":{"slug":"simlab-paid-test","title":"SimLab Core $49 paid test",
-              "domain":"system"},
- "reason":"<why this work area exists>","prev_hash":"<sha256 of previous line>"}
+ "work_area":{"slug":"simlab-paid-test","domain":"system"},
+ "reason":"new-work-area","prev_hash":"<sha256 of previous line>"}
 
 {"type":"LINK","cabinet_id":"cab-0001","at":"<iso8601>","actor":"<lane/program>",
  "member":{"system":"claim-register","id":"C-0071","kind":"epistemic-claim"},
  "relation":"primary",
- "evidence":"<immutable source-segment reference that proves membership>",
- "reason":"<why this member belongs to this work area>",
+ "evidence":"sha256:<digest of anchored segment>@<iso8601 capture time>",
+ "reason":"shared-artifact",
  "prev_hash":"<sha256 of previous line>"}
 
 {"type":"UNLINK","cabinet_id":"cab-0001","at":"<iso8601>","actor":"<lane/program>",
  "member":{"system":"claim-register","id":"C-0071","kind":"epistemic-claim"},
  "relation":"primary",
  "corrects":"<registry line number of the LINK event it reverses>",
- "evidence":"<immutable source-segment reference that proves the link was wrong>",
- "reason":"<why the link was wrong>","prev_hash":"<sha256 of previous line>"}
+ "evidence":"sha256:<digest of anchored segment>@<iso8601 capture time>",
+ "reason":"evidence-refuted","prev_hash":"<sha256 of previous line>"}
 ```
 
 Event rules (normative):
@@ -157,7 +156,21 @@ Event rules (normative):
   `evidence` is mandatory on LINK and UNLINK. An event missing a
   mandatory field fails validation and is never accepted. (The first
   draft's examples omitted LINK's `reason` and UNLINK's `evidence`
-  although §7 required both — corrected here.)
+  although §7 required both — corrected here.) Field *values* in
+  history lines obey §6's history rule — a closed, tombstone-grade
+  inventory (no titles or member-derived free text; `reason` as a code
+  below; `evidence` digest-bound) — and an event that cannot be
+  expressed within that inventory fails validation like a missing
+  field.
+- **Reason codes.** In history lines `reason` is a code, not free text
+  (§6 history rule): MINT — `new-work-area`; LINK — `shared-artifact`,
+  `dispatch-record`, `admitted-claim-describes`, `title-citation`,
+  `owner-decision`, `merge-movement`, `secondary-relation`; UNLINK —
+  `evidence-refuted`, `merge-movement`, `wrong-member`,
+  `forget-consequence`, `owner-decision`. A fuller rationale may be
+  retained in the owning namespace under the inherited privacy level
+  and referenced by digest (the code suffixed with `@<sha256>`). The
+  vocabulary extends only by spec amendment.
 - **`relation`** is `primary` (default) or `secondary` (§1 policy). An
   UNLINK reverses exactly one LINK of the same relation, named by
   `corrects` (registry line number of that LINK event) — corrections are
@@ -193,7 +206,11 @@ Event rules (normative):
   path + line/heading anchor, or a bounded probe artifact named with its
   digest and capture time. An anchor whose target has moved or vanished
   fails verification (backfill plan, Step 5) until re-anchored by a
-  correction event.
+  correction event. In registry history lines the anchor is recorded
+  only in the digest-bound form of §6's history rule (segment SHA-256 +
+  capture time); the literal coordinates are resolved inside the owning
+  namespace, under its access rules, when verification re-reads the
+  segment.
 
 - `system` is one of: `vm-spine`, `claim-register`, `home-runloop`,
   `claim-service` (the four namespaces of Phase 0 §2). New systems join by
@@ -312,7 +329,9 @@ contract rules 4 and 6):
   secrets (rule 4's `secret-pointer` discipline: pointers, never the
   secret), and are themselves subject to the inherited privacy level —
   an association or evidence path can disclose sensitive information
-  even when no source body is present.
+  even when no source body is present. In registry history lines these
+  fields are bound further by the history rule below — tombstone-grade
+  by construction.
 - **Forget (rule 6) applies to linkage in the same operation.** When a
   member is forgotten (lifecycle INVALIDATE, reason `forget`): (a) the
   invalidation is recorded; (b) the member's derived entries are **purged
@@ -325,10 +344,84 @@ contract rules 4 and 6):
   plan): a default query returns the tombstone, not the membership.
   Append-only Git history alone does **not** make retained sensitive
   metadata compliant: the operative fold, index, and projections must
-  not expose it, metadata minimization (no content in fields, above) is
-  the primary control, and any residual exposure inside historical
-  commits is a named gap for a recorded owner decision (rule 7), never
-  silently accepted.
+  not expose it — and the audit history itself is bound by the same
+  rule, per the history rule below. Metadata minimization is therefore
+  not a best effort: what may enter history at all is fixed by
+  construction, and any exposure that nevertheless exists blocks its
+  path until treated. There is no "named gap" state.
+
+### History rule — tombstone-grade by construction; exposure blocks until treated
+
+Rule 6(b) governs what may *remain* of a forgotten record: a tombstone
+carrying (system, ID), forget timestamp and actor — content does not
+remain. The Registrar's append-only Git history is audit history for
+every member it names, so the same rule binds what that history may
+ever contain. Rule 6(c) invalidation of a derived entry does not make
+a sensitive payload retained in a Git object harmless, and rule 7
+supplies no exception for retained sensitive content.
+
+**Content rule (closed inventory).** A registry history line may
+contain only:
+
+- structural fields: `type`, `cabinet_id`, `at`, `actor`, `prev_hash`,
+  and, for LINK/UNLINK, `relation` / `corrects`;
+- the member's (system, ID) pair and `kind` — exactly the identifiers
+  a rule 6(b) tombstone itself carries;
+- for MINT, the Registrar-assigned `work_area.slug` and `domain` —
+  grouping labels assigned by the Registrar, never copied or
+  paraphrased from a member record;
+- `reason` as a **reason code** from the controlled vocabulary in §4,
+  optionally followed by `@<sha256>` — the digest of a fuller rationale
+  note retained in the owning namespace under the inherited privacy
+  level (above). Free-text reasons are not written to history;
+- `evidence` as a **digest-bound reference**: the SHA-256 of the
+  anchored source segment plus its capture time (for probe artifacts,
+  the artifact digest). Literal evidence coordinates — file paths,
+  line numbers — never appear in history lines; they are resolved
+  inside the owning namespace, under its access rules, when
+  verification re-reads the segment and checks the digest (backfill
+  plan Step 5, check 2, is satisfied by this binding).
+
+Human-readable work-area **titles** and descriptive labels never
+appear in history lines; they live only in `INDEX.md` and projections
+— current-state surfaces the forget operation purges in the same
+operation. An event whose fields cannot be expressed within this
+inventory fails validation and is not appended (§4): history is made
+tombstone-grade at write time, not redacted after the fact. Because no
+member content, title, association text, or raw evidence path ever
+enters a Git object, a later forget leaves nothing in history beyond
+what rule 6(b) permits a tombstone to carry.
+
+**Exposure: block, then treatment.** If non-tombstone-grade metadata
+deriving from a member is nevertheless present in accepted history
+when a forget lands — legacy lines predating this rule, or a
+validation escape — the forget is not complete, and the exposure is
+handled as a block, never as a note:
+
+- The **affected path is BLOCKED** from the moment the exposure is
+  identified: no new events for the affected Cabinet, no projection
+  builds or stamps derived from it, no join depending on it proceeds,
+  and default retrieval for the affected Cabinet returns tombstone-only.
+  The block stands indefinitely while the exposure stands; an
+  unresolved exposure is a stopped path, not a documented gap.
+- The only exit is an executed **and verified history treatment**: a
+  recorded owner decision under contract rule 7 authorizing the
+  specific treatment of the affected objects (history rewrite
+  replacing the offending lines with tombstone-grade lines, or removal
+  of the affected objects — an owner decision may authorize the
+  deletion this requires). The Registrar executes the treatment; the
+  treated history is re-folded and re-accepted under §3, with the
+  decision and the treatment recorded alongside the new accepted head;
+  and verification re-scans the treated history end to end — no
+  payload beyond tombstone-grade for the forgotten member may remain
+  before the block lifts. This spec **requires** the treatment as the
+  sole compliant path; naming a future owner decision does not
+  substitute for it, and absent that decision the block — not silent
+  non-conformance — is the state of the path.
+- Retirement under the backfill plan (Step 4) stands under this rule:
+  a non-survivor's history is retained **subject to rule 6** — where a
+  forget applies to any of its members, this treatment governs, and
+  "stands forever" is never a promise above the forget obligations.
 
 ## 7. Draft clarification of identity rule 1 (DRAFT — for Tân's ratification, NOT applied)
 
