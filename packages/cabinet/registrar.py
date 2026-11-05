@@ -618,10 +618,20 @@ def build_index(state, head, n_lines, labels, pending_section="",
     return "\n".join(idx).rstrip() + "\n"
 
 
-def project(registry_path, out_dir=None, labels=None, generated_at=None):
+def project(registry_path, out_dir=None, labels=None, generated_at=None,
+            forgotten_extra=()):
     """Rebuild PROJECTION.json (+ INDEX.md) from the accepted fold and
     verify by readback: the written projection must re-derive from an
-    independent re-fold of the registry on disk."""
+    independent re-fold of the registry on disk.
+
+    `forgotten_extra` names (system, id) pairs to treat as forgotten
+    for THIS rebuild in addition to the members derived from
+    forget-consequence UNLINKs in the accepted history. It exists for
+    the forget of a member whose links were all previously reversed:
+    no forget-consequence UNLINK exists for it, yet its labels and
+    label provenance must still be purged in the forget operation
+    (finding C2(b), fix round 3) — without manufacturing an orphan
+    UNLINK event."""
     out_dir = out_dir or os.path.dirname(os.path.abspath(registry_path))
     lines, events = read_registry(registry_path)
     verify_chain(lines, events)
@@ -654,7 +664,7 @@ def project(registry_path, out_dir=None, labels=None, generated_at=None):
                 sources[cab] = src
             else:
                 sources.pop(cab, None)
-    forgotten = forgotten_members(events)
+    forgotten = forgotten_members(events) | set(forgotten_extra)
     live = {cab for cab, c in state["cabinets"].items() if c["members"]}
     kept_labels, kept_sources = {}, {}
     for cab, text in merged_labels.items():
@@ -776,53 +786,160 @@ def _scan_surface_blob(text, sha, path, member_id, needles):
     return findings
 
 
-def scan_history(repo_path, registry_rel, system, member_id, needles=()):
-    """§6 retained-history verification (fix round 2, finding C2).
+def _object_inventory(repo):
+    """[(sha, type)] for EVERY object in the store — reachable or
+    not: `cat-file --batch-all-objects` enumerates the full object
+    database, including unreachable retained objects."""
+    listing = _git(repo, "cat-file", "--batch-all-objects",
+                   "--batch-check=%(objectname) %(objecttype)") \
+        .decode("utf-8", "replace")
+    out = []
+    for line in listing.splitlines():
+        sha, _, otype = line.partition(" ")
+        if sha and otype:
+            out.append((sha, otype))
+    return out
 
-    Checks EVERY retained Git object of every registry file — all
-    blobs reachable from any ref, plus unattributed objects in the
-    store — for beyond-tombstone payload of the member (system,
-    member_id): REGISTRY.jsonl lines must stay within the closed
-    tombstone-grade inventory; INDEX.md / projection blobs must not
-    carry the member's ID or any caller-supplied label derived from
-    the member (`needles`). READ-ONLY: this function never writes to
-    the repo. Returns a JSON-serializable verdict; "blocked" is True
-    exactly when findings exist."""
-    registry_rel = registry_rel.strip("/")
-    member = f"{system}:{member_id}"
+
+def _all_blob_paths(repo, objects):
+    """{blob_sha: {path, ...}} — EVERY path association recoverable
+    for a blob, not one representative (fix round 3, finding C2(d)).
+
+    `rev-list --objects` names each object once, under an arbitrary
+    one of its paths: a blob committed both as a scratch file and as
+    `registry/INDEX.md` can be reported only under the scratch path
+    and then skipped under its registry identity. So the association
+    set is built from the trees themselves: the root tree of EVERY
+    commit object in the store (reachable or unreachable — an
+    abandoned commit's tree still proves its blobs' paths), plus
+    every tree object walked as a potential root, unioned with the
+    rev-list associations."""
     paths = {}
-    listing = _git(repo_path, "rev-list", "--objects", "--all") \
+
+    def add(sha, path):
+        paths.setdefault(sha, set()).add(path)
+
+    listing = _git(repo, "rev-list", "--objects", "--all") \
         .decode("utf-8", "replace")
     for line in listing.splitlines():
         sha, _, p = line.partition(" ")
         if p:
-            paths.setdefault(sha, p)
-    objects = _git(repo_path, "cat-file", "--batch-all-objects",
-                   "--batch-check=%(objectname) %(objecttype)") \
-        .decode("utf-8", "replace").splitlines()
+            add(sha, p)
+
+    def walk(tree_sha, prefix, seen):
+        if (tree_sha, prefix) in seen:
+            return
+        seen.add((tree_sha, prefix))
+        out = _git(repo, "ls-tree", tree_sha).decode("utf-8", "replace")
+        for entry in out.splitlines():
+            meta, _, name = entry.partition("\t")
+            parts = meta.split(" ")
+            if len(parts) < 3 or not name:
+                continue
+            otype, osha = parts[1], parts[2]
+            path = f"{prefix}/{name}" if prefix else name
+            add(osha, path)
+            if otype == "tree":
+                walk(osha, path, seen)
+
+    for sha, otype in objects:
+        if otype == "commit":
+            raw = _git(repo, "cat-file", "commit", sha) \
+                .decode("utf-8", "replace")
+            first = raw.splitlines()[0] if raw.splitlines() else ""
+            if first.startswith("tree "):
+                walk(first[5:].strip(), "", set())
+        elif otype == "tree":
+            walk(sha, "", set())
+    return paths
+
+
+def scan_history(repo_path, registry_rel, system, member_id, needles=()):
+    """§6 retained-history verification (fix round 2, finding C2;
+    coverage completed in fix round 3).
+
+    Checks EVERY retained Git object of every registry file for
+    beyond-tombstone payload of the member (system, member_id):
+    REGISTRY.jsonl lines must stay within the closed tombstone-grade
+    inventory; INDEX.md / projection blobs must not carry the
+    member's ID or any caller-supplied label derived from the member
+    (`needles`). Coverage rules (fix round 3, finding C2(d)):
+
+    - A blob is scanned under EVERY path association recoverable for
+      it (see `_all_blob_paths`): an object that sits under a
+      registry path in ANY retained tree is in scope under that
+      identity, however many other paths it also has.
+    - Unreachable retained objects are enumerated with the rest of
+      the object store; an abandoned commit's tree still attributes
+      its blobs, so a label-only historical INDEX blob is found.
+    - Surface matching checks member identifiers AND derived labels
+      alike — a label-only blob (no member ID present) is an
+      exposure when the label is supplied as a needle.
+    - Where coverage is UNCERTAIN — a blob retained under the
+      registry directory in a file kind the scan cannot classify, or
+      an unattributed object retaining a derived label — the result
+      is a finding: the forget path BLOCKS, never passes.
+
+    READ-ONLY: this function never writes to the repo. Returns a
+    JSON-serializable verdict; "blocked" is True exactly when
+    findings exist."""
+    registry_rel = registry_rel.strip("/")
+    member = f"{system}:{member_id}"
+    objects = _object_inventory(repo_path)
+    paths = _all_blob_paths(repo_path, objects)
     findings, n_blobs, n_registry_blobs = [], 0, 0
-    for entry in objects:
-        sha, _, otype = entry.partition(" ")
+    for sha, otype in objects:
         if otype != "blob":
             continue
         n_blobs += 1
-        path = paths.get(sha)
-        base = os.path.basename(path) if path else None
-        is_registry_file = bool(path) \
-            and os.path.dirname(path) == registry_rel \
-            and base in REGISTRY_FILE_BASENAMES
-        if path is not None and not is_registry_file:
-            continue
+        blob_paths = paths.get(sha, set())
+        registry_paths = sorted(
+            p for p in blob_paths
+            if os.path.dirname(p) == registry_rel
+            and os.path.basename(p) in REGISTRY_FILE_BASENAMES)
+        unclassified_paths = sorted(
+            p for p in blob_paths
+            if os.path.dirname(p) == registry_rel
+            and os.path.basename(p) not in REGISTRY_FILE_BASENAMES)
+        if not (registry_paths or unclassified_paths or not blob_paths):
+            continue  # attributed to non-registry paths only
         text = _git(repo_path, "cat-file", "blob", sha) \
             .decode("utf-8", "replace")
-        if is_registry_file:
+        if registry_paths:
             n_registry_blobs += 1
-            if base == "REGISTRY.jsonl":
-                findings += _scan_registry_blob(
-                    text, sha, path, system, member_id)
-            else:
-                findings += _scan_surface_blob(
-                    text, sha, path, member_id, needles)
+            for path in registry_paths:
+                if os.path.basename(path) == "REGISTRY.jsonl":
+                    findings += _scan_registry_blob(
+                        text, sha, path, system, member_id)
+                else:
+                    findings += _scan_surface_blob(
+                        text, sha, path, member_id, needles)
+            continue
+        if unclassified_paths:
+            hits = [n for n in (member_id, *needles) if n and n in text]
+            if hits:
+                findings.append({
+                    "object": sha, "path": unclassified_paths[0],
+                    "kind": "registry-path-unclassified",
+                    "detail": f"object retained under {registry_rel}/ "
+                              f"in a file kind the scan cannot "
+                              f"classify, naming {hits[0]!r}; coverage "
+                              f"uncertain — the forget path must "
+                              f"block, not pass"})
+            continue
+        # No retained path association at all (e.g. a bare blob): a
+        # caller-supplied derived label is specific enough to be an
+        # exposure on its own; the member ID counts only in
+        # registry-shaped content (the pre-existing rule).
+        label_hits = [n for n in needles if n and n in text]
+        if label_hits:
+            findings.append({
+                "object": sha, "path": None,
+                "kind": "unattributed-registry-payload",
+                "detail": f"unattributed object retains derived label "
+                          f"{label_hits[0]!r} with no retained path; "
+                          f"coverage uncertain — the forget path must "
+                          f"block, not pass"})
         elif member_id in text and ("cabinet_id" in text
                                     or "Cabinet Registrar" in text
                                     or "cabinet-membership" in text):
@@ -859,7 +976,16 @@ def forget_member(registry_path, system, member_id, expected_head,
     never member content or labels, so nothing beyond a tombstone
     resurfaces from them. A member with no active memberships appends
     nothing (any previously reversed links stay reversed) and the
-    projections are still rebuilt. Returns a summary dict.
+    projections are still rebuilt — with the forget TARGET passed
+    explicitly to that rebuild (`forgotten_extra`), so the target's
+    labels and label provenance are purged in the same operation
+    even when it has zero active memberships (finding C2(b), fix
+    round 3): the target's participation in the label purge does not
+    depend on a forget-consequence UNLINK existing, and no orphan
+    UNLINK is manufactured — the closed registry-event inventory and
+    targeted-UNLINK validity are preserved. Once purged from
+    INDEX.md, a later rebuild has nothing left to merge back.
+    Returns a summary dict.
 
     When `repo` (a Git working tree) and `registry_rel` (the registry
     directory's path inside it) are supplied, the retained-history
@@ -903,7 +1029,8 @@ def forget_member(registry_path, system, member_id, expected_head,
         out = append_events(registry_path, candidates, expected_head)
         appended = out["appended"]
         head = out["head"]
-    proj = project(registry_path)
+    proj = project(registry_path,
+                   forgotten_extra={(system, member_id)})
     result = {"member": f"{system}:{member_id}", "unlinked": appended,
               "head": head, "projection": proj}
     if scan is not None:

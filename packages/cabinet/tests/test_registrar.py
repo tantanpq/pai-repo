@@ -448,6 +448,41 @@ class TestForgetLabels(ScratchCase):
         R.project(self.reg, generated_at=AT)
         self.assertNotIn("target-work-area", self._index())
 
+    def test_derived_label_purged_when_member_already_unlinked(self):
+        # Fix round 3 (finding C2(b)): the forget target participates
+        # in the label/provenance purge even with ZERO active
+        # memberships — its only LINK was ordinarily reversed before
+        # the forget, so no forget-consequence UNLINK exists. The
+        # registry must not gain an orphan UNLINK: bytes unchanged.
+        out = self.genesis()  # C-0001 line 2, C-0002 line 3
+        out = R.append_events(self.reg, [
+            unlink("cab-0001", 2, cid="C-0001")],
+            out["head"])  # line 4: C-0001 fully reversed
+        R.project(self.reg, generated_at=AT, labels={
+            "cab-0001": {"label": "reversed-target-label",
+                         "derived_from": "claim-register:C-0001"}})
+        text = self._index()
+        self.assertIn("reversed-target-label", text)
+        self.assertIn("- cab-0001 <= claim-register:C-0001", text)
+        before = self.bytes_now()
+        res = R.forget_member(self.reg, "claim-register", "C-0001",
+                              out["head"], ACTOR, EV, at=AT)
+        self.assertEqual(res["unlinked"], 0)
+        self.assertEqual(self.bytes_now(), before)  # nothing appended
+        text = self._index()
+        self.assertNotIn("reversed-target-label", text)
+        self.assertNotIn("Label provenance", text)
+        self.assertIn("C-0002", text)  # bystander membership intact
+        with open(os.path.join(self.tmp.name, "PROJECTION.json"),
+                  "rb") as f:
+            proj = json.loads(f.read().decode("utf-8"))
+        self.assertNotIn("claim-register:C-0001", proj["members"])
+        # A later rebuild cannot restore the residue.
+        R.project(self.reg, generated_at=AT)
+        text = self._index()
+        self.assertNotIn("reversed-target-label", text)
+        self.assertNotIn("Label provenance", text)
+
     def test_plain_label_dropped_when_cabinet_empties(self):
         out = R.append_events(self.reg, [
             mint(), link("cab-0001", None, "C-0009")], R.GENESIS_HASH)
