@@ -493,6 +493,16 @@ def _emit(a, results, excluded, stale_sources, states, context, weights):
                      "p": r["privacy"], "ns": r["namespace"],
                      "s": make_snippet(r["text"], qtokens, cap, weights),
                      "src": _short_src(r)}
+            if r.get("forgotten"):
+                # Forget tombstones carry their metadata in EVERY
+                # representation, this default snippet one included
+                # (fix round 2, blocker 6 residual: round 1 emitted the
+                # tombstone in text and --full JSON but this entry lost
+                # forgotten/forget_at/forget_actor, so the default JSON
+                # could not communicate the forget at all).
+                entry["forgotten"] = True
+                entry["forget_at"] = r.get("forget_at")
+                entry["forget_actor"] = r.get("forget_actor")
             if fresh_of(r) != "FRESH":
                 entry["f"] = fresh_of(r)
             out_results.append(entry)

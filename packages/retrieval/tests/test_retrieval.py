@@ -645,6 +645,33 @@ class TestFixRound1(unittest.TestCase):
         out_text = run_query(out, "forgettable words")
         self.assertNotIn("FORGET-PROBE-OLD-CONTENT", out_text)
 
+    # ---- blocker 6 residual (fix round 2): the DEFAULT snippet JSON
+    # representation must carry the tombstone fields too — round 1
+    # emitted them in text and --full JSON only, so `--claim --json`
+    # returned an empty invalidated entry that could not communicate
+    # the forget (re-review probe B6: b6-id-json vs b6-id-json-full).
+    def test_blocker6_forget_tombstone_snippet_json(self):
+        self.rewrite(self.fx["claims"], [
+            {"event": "ADMIT", "claim": {
+                "id": "C-FORGET", "entity": "Widget Domain", "type": "STATUS",
+                "status": "current",
+                "claim": "FORGET-PROBE-OLD-CONTENT with unique forgettable words."}},
+            {"event": "INVALIDATE", "id": "C-FORGET", "reason": "forget",
+             "actor": "review-probe", "at": "2026-11-05T00:00:00+00:00"},
+        ])
+        _m, out, _records = self.build()
+        raw = run_query(out, "--claim", "C-FORGET", "--json")
+        self.assertNotIn("FORGET-PROBE-OLD-CONTENT", raw)
+        payload = json.loads(raw)
+        entries = [r for r in payload["results"]
+                   if r["i"] == "claim-register:C-FORGET"]
+        self.assertEqual(len(entries), 1)
+        entry = entries[0]
+        self.assertEqual(entry["s"], "")
+        self.assertIs(entry["forgotten"], True)
+        self.assertEqual(entry["forget_at"], "2026-11-05T00:00:00+00:00")
+        self.assertEqual(entry["forget_actor"], "review-probe")
+
     # ---- blocker 7: a blank line must not re-key a markdown record
     def test_blocker7_stable_id_blank_line(self):
         status_path = os.path.join(self.fx["ws"], "dom-a", "STATUS.md")
@@ -695,6 +722,57 @@ class TestFixRound1(unittest.TestCase):
         self.assertNotIn("C-EXP", [r.get("claim_id") for r in payload["results"]])
         reasons = {e["id"]: e["reason"] for e in payload["excluded"]}
         self.assertEqual(reasons.get("claim-register:C-EXP"), "STATE_ARCHIVED")
+
+
+class TestFixRound2EvalRunner(unittest.TestCase):
+    """Fix round 2, extra (a) discharged: the stock eval runner must
+    complete on a mirrored/partial workspace — a question whose old-path
+    baseline exists nowhere is UNRESOLVED-SOURCE (excluded from token
+    accounting, named), never a crash; --source-root maps the canonical
+    workspace root onto a local mirror. These tests pin the runner's
+    resolution helpers directly (the re-review's stock run died at Q10
+    on exactly this)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        path = os.path.join(HERE, "..", "..", "..",
+                            "evals", "retrieval", "run_eval.py")
+        spec = importlib.util.spec_from_file_location("run_eval", path)
+        cls.run_eval = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.run_eval)
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="pai-eval-runner-")
+
+    def test_source_root_maps_canonical_workspace_path(self):
+        re_ = self.run_eval
+        mirror = os.path.join(self.tmp, "mirror")
+        target = os.path.join(mirror, "some-domain", "STATUS.md")
+        os.makedirs(os.path.dirname(target))
+        with open(target, "w", encoding="utf-8") as f:
+            f.write("mirror copy\n")
+        canonical = "/home/hatch/workspace/some-domain/STATUS.md"
+        if os.path.exists(canonical):
+            self.skipTest("canonical fixture path unexpectedly exists")
+        self.assertEqual(re_.resolve_old_path(canonical, mirror), target)
+        self.assertEqual(re_.unresolved_files([canonical], mirror), [])
+        self.assertEqual(
+            re_.old_path_tokens([canonical], mirror),
+            re_.est_tokens("mirror copy\n"))
+
+    def test_unresolved_source_named_not_raised(self):
+        re_ = self.run_eval
+        ghost = "/home/hatch/workspace/no-such-domain-xyz/STATUS.md"
+        if os.path.exists(ghost):
+            self.skipTest("ghost fixture path unexpectedly exists")
+        # No mirror: unresolvable, returned unchanged, and reported by
+        # unresolved_files — the exact signal main() turns into a
+        # per-question UNRESOLVED-SOURCE row instead of RuntimeError.
+        self.assertEqual(re_.resolve_old_path(ghost), ghost)
+        self.assertEqual(re_.resolve_old_path(ghost, self.tmp), ghost)
+        self.assertEqual(re_.unresolved_files([ghost]), [ghost])
+        self.assertEqual(re_.unresolved_files([ghost], self.tmp), [ghost])
 
 
 if __name__ == "__main__":

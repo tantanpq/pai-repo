@@ -1,0 +1,25 @@
+# FIX2 ADDENDUM — Phase 2 fix round 2 (2026-11-05)
+
+Response to `~/workspace/pai-repo-program/CODEX_REREVIEW_PHASE2_FIX1_2026-11-05.md`
+(verdict FAIL: 7 of 8 blockers FIXED; blocker 6 residual + stock-eval
+portability + token-gate wording outstanding). Scope was exactly the
+three items below — the 7 FIXED blockers were not touched. Suite:
+**33 → 36 tests, all green.** Eval rerun on the VM: correctness
+**31/32 snippet · 32/32 full** (unchanged), token wins **26/32** raw,
+**0 UNRESOLVED-SOURCE**, index **634 records**, totals
+**2,117,771 → 10,236**. End state: **fixed, awaiting targeted Codex
+re-review 2 — not DONE.**
+
+| # | Item (re-review) | Fix | Pinning test / evidence |
+|---|---|---|---|
+| a | **Blocker 6 residual — NOT FIXED in round 1:** the forget tombstone was complete in text mode and `--json --full`, but the DEFAULT `--json` snippet entry (`retrieval_query.py` snippet construction) emitted an empty invalidated result WITHOUT `forgotten` / `forget_at` / `forget_actor` — the default representation could not communicate the forget (re-review probe B6: `b6-id-json.stdout.txt` vs `b6-id-json-full.stdout.txt`). Metadata completeness only; content purge already worked | The snippet-JSON entry builder now copies the tombstone fields from the record whenever `forgotten` is set: `forgotten: true`, `forget_at`, `forget_actor` ride the default snippet payload alongside the `lc`/`adm`/`p`/`ns` labels | `test_blocker6_forget_tombstone_snippet_json` — builds the reviewer's C-FORGET fixture shape (ADMIT + INVALIDATE reason=forget, actor `review-probe`, at `2026-11-05T00:00:00+00:00`), queries `--claim C-FORGET --json` with NO `--full`, and asserts on that exact representation: entry present, `s == ""`, `forgotten is True`, `forget_at`/`forget_actor` exact, purged content absent from the raw payload. (The round-1 test covered only `--full`; that gap is the reason this test exists.) |
+| b | **Fix-extra (a) not discharged:** the stock `run_eval.py` exited 1 at Q10 off-VM — `resolve_old_path()` re-rooted foreign home prefixes but Q10's source existed only under a nested stage layout, so the read raised and the runner died; no completed stock `last_run.json` off-VM | Two changes in `evals/retrieval/run_eval.py`: (1) a question whose old-path baseline resolves nowhere is **UNRESOLVED-SOURCE** — correctness is still measured, but the question is excluded from token win/loss accounting and from the token totals, and is named in `summary.unresolved_questions` + a loud `UNRESOLVED-SOURCE:` stdout line; the runner completes (exit 0). (2) **`--source-root DIR`** maps the canonical workspace root onto a local mirror during resolution (path suffix under `/workspace/` re-rooted at DIR), tried after the path itself and before the home-prefix re-root. On the VM's full workspace the method is unchanged: this run resolved 32/32, 0 unresolved | `TestFixRound2EvalRunner` (2 tests): `test_source_root_maps_canonical_workspace_path` (canonical `/home/hatch/workspace/...` path absent locally resolves into the mirror; `unresolved_files` empty; tokens measured from the mirror copy) · `test_unresolved_source_named_not_raised` (a nowhere-existing baseline is returned unchanged and REPORTED by `unresolved_files`, with and without a mirror — the signal `main()` turns into the UNRESOLVED-SOURCE row instead of the old `RuntimeError`). VM end-to-end evidence: this run's `last_run.json` — `resolved_questions: 32`, `unresolved_source_count: 0` |
+| c | **RESULTS.md wording:** its headline still framed the token tension as open ("EVERY/NOT MET", "surfaced for Tân to weigh") although the labels question was settled 2026-11-05; and the exception clause's original premise (source smaller than the label envelope) was refuted by the re-review's measurements | RESULTS.md regenerated: the gate section now states the settled state — labels retained per Tân's 10:25 PT ruling (closed, not a tension), and the exception criterion per the **rev2 ruling (10:45 PT, option 1, `DECISION_2026-11-05_TOKEN_GATE_AMENDMENT_2.md`)**: the exception class is the **MICRO class — old-path cost < 500 tokens**; labels retained; exceptions named per question; **at ≥ 500 tokens the per-question win is mandatory, no exceptions**. The re-review's refutation numbers are recorded as the reason the criterion changed. Per-question numbers are exactly as measured this run; no criterion was reworded by this lane beyond applying the settled rev2 text | This run under the settled gate: aggregate −99.5%; **22/22** questions at old-path ≥ 500 win; the 6 losses are exactly the MICRO class and are named in RESULTS.md (Q16 old 425 · Q21/Q22/Q23/Q24/Q27 old 118) |
+
+## Deliberately unchanged
+
+- The 7 blockers ruled FIXED in re-review 1 — no code touched.
+- The golden questions, gold strings, and the snippet configuration —
+  no tuning against the known losses (per the re-review's advisory).
+- The mandatory contract labels — retained in full, per the settled
+  rulings; no payload compaction was attempted in this round.
