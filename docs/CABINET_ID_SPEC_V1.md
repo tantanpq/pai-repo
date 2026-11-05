@@ -2,8 +2,8 @@
 
 Status: DESIGN — Phase 3, prerequisite slice 1 (2026-11-05). Nothing in this
 spec is implemented yet: no ID has been minted, nothing has been stamped.
-Implementation is a later slice, gated on review of this spec and on the
-identity-contract amendment drafted in §7.
+Implementation is a later slice, gated on review of this spec and on
+Tân's ratification of the identity-contract clarification drafted in §7.
 
 Authority: Tân's GO for Phases 3–5 in order (2026-11-05 11:23 PT,
 `docs/decisions/DECISION_2026-11-05_PHASES35_GO.md`), under the locked plan
@@ -25,8 +25,29 @@ attribute. It is not an identity:
 - Every record keeps its native ID, minted by its owning system. Citations
   remain (owning-system, native-ID) pairs, per the identity contract.
 - A Cabinet ID never replaces, renames, or re-keys a native ID.
-- One record carries **at most one** Cabinet ID. One Cabinet ID normally
-  covers many records across two or more systems.
+- Membership is typed **primary / secondary / pending** (the 1-per-record
+  assumption of the first draft did not survive review — some records
+  genuinely span lines of work: the Phase 0 appendix's SimLab spine task
+  joins a push window *and* a CMM pilot milestone in one registration,
+  and claim C-0139 is cited by both the unverified-systems and the
+  orphan-briefs tasks). The policy:
+  - **Primary:** a record carries **at most one primary** Cabinet ID. The
+    primary is the work area its evidence anchors it to.
+  - **Secondary:** a record whose evidence genuinely spans further work
+    areas MAY carry secondary Cabinet references. A secondary reference
+    is a typed, non-identity grouping relation asserting only "also
+    concerns this work area" — it is not a second membership of the
+    primary kind, confers nothing, and is recorded as its own registry
+    event (§4), never as a silent extra stamp.
+  - **Pending:** a record whose primary area cannot be decided on
+    evidence stays **pending** — recorded as a pending exhibit in the
+    registry index, NOT stamped. A pending exhibit is not an admitted
+    LINK and carries no Cabinet ID.
+  - Records are never split, never force-merged to satisfy the primary
+    cap, and never assigned a primary by default or by order of
+    encounter. Coverage is reported at the policy's actual level:
+    primary coverage and secondary coverage are counted separately
+    (backfill plan, Step 5).
 - Object kinds stay distinct inside a work area: an epistemic claim
   (`claim-register:`) and an execution claim (`home-runloop:`) may share a
   Cabinet ID while remaining different kinds with different semantics
@@ -55,14 +76,52 @@ cab-NNNN        e.g. cab-0001, cab-0042
   registry kept in this repo at `docs/cabinet-registry/` (machine ledger
   `REGISTRY.jsonl` + human index `INDEX.md`), operated by the PAI Repo
   program under Tân's ownership.
-- The Registrar is deliberately **not** a running service (identity contract
-  non-goal: "No global ID-minting service in this phase"). Minting is a
-  registry append performed by one designated lane at a time
-  (single-writer discipline); the sequence is allocated from the registry
-  tail, and every append records the previous line's hash so a fork or a
-  double-mint is mechanically detectable.
+- The Registrar is deliberately **not** a running service. It is,
+  honestly, a **central allocator of grouping keys** for the Cabinet
+  namespace — a registry-keeping function, not a runtime minting service;
+  owning systems still mint all native IDs. The identity contract's
+  non-goal ("No global ID-minting service in this phase") is addressed by
+  the draft clarification in §7, which names this exception instead of
+  claiming an exemption by wordplay.
+- Minting is a registry append performed by one designated lane at a time
+  (single-writer discipline). Discipline alone is **not** exclusion, so
+  acceptance is mechanical, not social (fix-round response to review
+  finding F02):
+  - There is exactly **one authoritative accepted history**: the registry
+    as accepted on this repo's accepted branch. Proposals on any other
+    branch or in any staging copy are unaccepted until merged there.
+  - The next Cabinet sequence is allocated from the **greatest MINT
+    sequence in the accepted history** — never from the registry tail
+    event (the tail may be a LINK to an older Cabinet).
+  - An append is accepted only against the **expected accepted head**:
+    the writer states the head hash it built on; if the accepted head
+    has moved, the append is stale and is **rejected**, not merged.
+  - Before acceptance, the complete candidate fold is **validated**:
+    event schemas (§4), unique and monotonically increasing MINT
+    sequences, no duplicate Cabinet ID, every referenced Cabinet exists,
+    allowed system/kind values, and at most one active primary
+    membership per member after folding. Any violation rejects the
+    append.
+  - **No projection is built from an unaccepted proposal.** A losing
+    proposal stays unaccepted and, if resubmitted, receives a fresh
+    sequence allocation against the then-current head.
+  - If a conflict nevertheless escapes into accepted or projected state:
+    stamping **stops**, and reconciliation is by recorded correction
+    events (§4 UNLINK / correction) — an already published Cabinet ID is
+    never silently reassigned.
+- What `prev_hash` does and does not do (qualified claim): each append
+  records the previous line's hash (§4 byte rules), so within a presented
+  history a broken predecessor reference is mechanically detectable, and
+  with the exact byte rules plus a **trusted accepted head**, many edits,
+  removals, and reorderings are detectable. `prev_hash` alone does **not**
+  prevent forks (two successors of one predecessor can each validate
+  locally), double allocation, unauthorized actors, forged evidence,
+  duplicate membership, or a semantically wrong link. Fork/double-mint
+  safety comes from the accepted-head + fold-validation discipline above,
+  not from the hash chain by itself.
 - No other system mints Cabinet IDs. Owning systems keep minting their
-  native IDs exactly as today (identity contract rule 1, amended per §7).
+  native IDs exactly as today (identity contract rule 1, read per the
+  draft clarification in §7).
 
 ## 4. The registry (source of truth for all stamping)
 
@@ -79,13 +138,62 @@ Event shapes (one JSON object per line, append-only):
 
 {"type":"LINK","cabinet_id":"cab-0001","at":"<iso8601>","actor":"<lane/program>",
  "member":{"system":"claim-register","id":"C-0071","kind":"epistemic-claim"},
- "evidence":"<path#line anchor or probe reference that proves membership>",
+ "relation":"primary",
+ "evidence":"<immutable source-segment reference that proves membership>",
+ "reason":"<why this member belongs to this work area>",
  "prev_hash":"<sha256 of previous line>"}
 
 {"type":"UNLINK","cabinet_id":"cab-0001","at":"<iso8601>","actor":"<lane/program>",
  "member":{"system":"claim-register","id":"C-0071","kind":"epistemic-claim"},
+ "relation":"primary",
+ "corrects":"<registry line number of the LINK event it reverses>",
+ "evidence":"<immutable source-segment reference that proves the link was wrong>",
  "reason":"<why the link was wrong>","prev_hash":"<sha256 of previous line>"}
 ```
+
+Event rules (normative):
+
+- **Mandatory fields.** `reason` is mandatory on MINT, LINK, and UNLINK;
+  `evidence` is mandatory on LINK and UNLINK. An event missing a
+  mandatory field fails validation and is never accepted. (The first
+  draft's examples omitted LINK's `reason` and UNLINK's `evidence`
+  although §7 required both — corrected here.)
+- **`relation`** is `primary` (default) or `secondary` (§1 policy). An
+  UNLINK reverses exactly one LINK of the same relation, named by
+  `corrects` (registry line number of that LINK event) — corrections are
+  targeted, never bulk or implicit.
+- **Fold semantics.** Registry state is the fold of the accepted history
+  in order: MINT creates a Cabinet; LINK adds an active membership of the
+  stated relation; UNLINK deactivates the LINK it corrects. Folding is
+  idempotent — re-folding the same accepted history yields the same
+  state, and re-applying an already-folded event changes nothing.
+  Validation runs over the complete fold before acceptance (§3): schema,
+  sequence uniqueness/monotonicity, referenced Cabinets exist, at most
+  one active **primary** membership per member.
+- **Projections and readback.** The registry fold is authoritative.
+  Every projection (claim-ledger LINK/UNLINK events per §5.1, `INDEX.md`,
+  spine-side display per §5.2) is owned by the Registrar, is built ONLY
+  from the accepted fold (§3), and is verified by **readback against the
+  accepted fold** after every build — including after UNLINK and after
+  retry/crash recovery, since a projection that applied a LINK but lost
+  its UNLINK is a live defect, not a cosmetic one. Projection writes are
+  append-only and retry-safe: re-projecting an event that is already
+  present is a no-op, detected by the event's registry line number.
+- **Hash byte rules.** Lines are UTF-8 JSON, one object per line,
+  terminated by a single LF. `prev_hash` is the lowercase hex SHA-256 of
+  the previous line's exact bytes **excluding** its trailing LF. The
+  first line's `prev_hash` is the SHA-256 of the empty string (genesis).
+  Cabinet sequences are compared **numerically**, not lexically (the
+  §2 widening past 9999 depends on this). A trailing partial line (no LF
+  terminator, or invalid JSON) is not an event: the fold MUST refuse the
+  registry until the partial tail — a crash artifact containing no
+  complete event — is removed and the removal recorded in `INDEX.md`.
+- **Evidence anchors bind an immutable source segment** (identity
+  contract rule 6), not a mutable line number alone: a commit hash +
+  path + line/heading anchor, or a bounded probe artifact named with its
+  digest and capture time. An anchor whose target has moved or vanished
+  fails verification (backfill plan, Step 5) until re-anchored by a
+  correction event.
 
 - `system` is one of: `vm-spine`, `claim-register`, `home-runloop`,
   `claim-service` (the four namespaces of Phase 0 §2). New systems join by
@@ -95,9 +203,10 @@ Event shapes (one JSON object per line, append-only):
   never rewritten to a common kind — grouping is not merging.
 - `domain` uses the plan's controlled tag vocabulary (`domain:` axis,
   plan §5). No free tags.
-- Every LINK carries resolvable evidence (identity contract rule 6 applied
-  to links: a link without a resolvable anchor is an orphan and MUST NOT be
-  recorded).
+- Every LINK carries resolvable, immutable-segment evidence and a reason
+  (identity contract rule 6 applied to links: a link without a resolvable
+  anchor is an orphan and MUST NOT be recorded). Every UNLINK carries
+  evidence and a reason too, and names the LINK it corrects.
 
 ## 5. Where the ID gets stamped, per namespace
 
@@ -107,14 +216,26 @@ implementation slice. Until then, membership lives in the registry alone.
 ### 5.1 VM claim register (`C-NNNN`) — LINK events in the claim ledger
 
 - The register is an append-only event ledger (ADMIT / INVALIDATE).
-  Stamping is a **new append-only event type** in the same ledger flow:
-  `{"entity":"C-0071","type":"LINK","cabinet_id":"cab-0001", …}` admitted
-  through the register's normal inbox path.
+  Stamping is a **new append-only event pair** in the same ledger flow:
+  `{"entity":"C-0071","type":"LINK","cabinet_id":"cab-0001", …}` and its
+  reversal `{"entity":"C-0071","type":"UNLINK","cabinet_id":"cab-0001", …}`,
+  admitted through the register's normal inbox path. **Precondition:** the
+  register's owning inbox/admission path must be qualified to accept and
+  fold LINK/UNLINK before any such event is appended — no event is
+  written into a path that cannot fold it back out.
 - The original ADMIT record is never edited (lifecycle contract rules 3, 5:
   no silent edits; the ledger is the only write path for governed changes).
-- Consumers (Phase 2 retrieval) resolve a claim's Cabinet ID by folding its
-  LINK events; an INVALIDATE of the claim does not delete its links —
-  lifecycle state and linkage are separate axes.
+- Consumers (Phase 2 retrieval) resolve a claim's Cabinet ID by folding
+  its LINK/UNLINK sequence (the registry fold is mirrored here; on any
+  disagreement the accepted registry fold wins and the projection is
+  rebuilt). An ordinary INVALIDATE of the claim does not delete its
+  links — lifecycle state and linkage are separate axes — but linkage
+  confers no retrievability: an invalidated claim stays out of default
+  results (admission contract rule 2), links notwithstanding.
+- **Forget is not an ordinary INVALIDATE.** An INVALIDATE with reason
+  `forget` triggers the §6 forget procedure for the claim's derived
+  entries — this projection included — in the same operation (admission
+  contract rule 6(c)).
 
 ### 5.2 VM spine (`sp-…`) — registry-only; derived projection, never a write
 
@@ -159,49 +280,98 @@ implementation slice. Until then, membership lives in the registry alone.
 
 | Identity rule | Position |
 |---|---|
-| 1 — one ID, assigned by owning system, never reused/reassigned/content-derived | **Amendment needed** — see §7. Native IDs are untouched, but a stamped linkage key is a second identifier on the same record, which rule 1's "exactly one ID" does not currently admit. |
-| 2 — IDs namespaced by owning system; cross-system reference = (system, ID) pair | **Conforms.** Cabinet citations are always the triple (cabinet_id, system, native ID); a bare native ID is never treated as cross-system, and a bare Cabinet ID cites a work area, never a record. |
+| 1 — one ID, assigned by owning system, never reused/reassigned/content-derived | **Conforms under the clarified reading drafted in §7** (clarification, not amendment-by-exemption). Read in isolation, "carries exactly one ID" is ambiguous about foreign references; read with the contract's purpose and its own rules 2, 5, and 7 — which *require* records to carry references to other objects' IDs — rule 1 fixes **native identity**, and a Cabinet ID carried as a typed foreign reference to a separately identified work-area grouping is not a second identity. The existing contract does not unambiguously ban such a reference, so no amendment is logically required merely because a linkage key is present. This program nevertheless **chooses** a recorded human clarification of rule 1 before implementing (§7, Step 0 gate in the backfill plan) — a ratification decision, not a logical necessity, and nothing is self-authorized by this reading. |
+| 2 — IDs namespaced by owning system; cross-system reference = (system, ID) pair | **Conforms.** One formulation, used everywhere in this spec: a record citation is **always the native (system, ID) pair**; a citation MAY be **annotated** with the record's Cabinet ID, and the annotation never substitutes for the pair — parsers, lookups, and interfaces must address a member by its native pair. A bare Cabinet ID cites a **work area only**, and only inside the explicit Cabinet namespace; it is never a record citation and does not waive rule 2 for any object. |
 | 3 — content_hash detects change only; hash is never an ID | **Conforms.** Cabinet IDs are sequential, assigned at mint; registry `prev_hash` is a chain-integrity device, never an identifier. |
-| 4 — one execution authority (HOME); mirrors carry the authority's (system, ID) pair and never mint a second identity | **Conforms.** The Cabinet ID is not a task identity and confers no execution authority; HOME's authority is unchanged; the VM spine remains a read-model (§5.2). |
+| 4 — one execution authority (HOME); mirrors carry the authority's (system, ID) pair and never mint a second identity | **Conforms.** The Cabinet ID is not a task identity and confers no execution authority; HOME's authority is unchanged; the VM spine remains a read-model (§5.2). **Explicit prohibition:** no admission, dispatch, lease/fence, closure, or ownership decision may be **inferred** from a Cabinet match. For an actual task mirror, a Cabinet link never substitutes for the HOME authority's (system, ID) pair; a VM planning registration grouped with HOME records remains a planning record — grouping does not certify task equivalence or cure an absent authority reference. |
 | 5 — attempt/result reference (task ID, ordinal) | **Conforms / unaffected.** Run-loop attempts and results inherit work-area membership through their work unit (§5.3); their native references are unchanged. |
 | 6 — fact/record carries a `path#line` provenance anchor; orphans are not admitted | **Conforms, extended to links.** Every LINK event must carry resolvable evidence (§4); an unanchored link MUST NOT be recorded. |
-| 7 — epistemic claims and execution claims are different kinds; never merge semantics | **Conforms.** `kind` is recorded per member and never rewritten (§4); a shared Cabinet ID asserts "same work area", never "same kind of claim". |
+| 7 — epistemic claims and execution claims are different kinds; never merge semantics | **Conforms.** `kind` is recorded per member and never rewritten (§4). A shared Cabinet ID asserts only **"concerns this work area"** — never "same object", never "same kind of claim", never "proves this claim", and never "same execution state". No member's PASS, admission state, or lifecycle state transfers to another member through shared membership. |
 
 Lifecycle contract: LINK/UNLINK are append-only registry events with
-actor, timestamp, and reason (§4), matching rule 5's event shape; nothing
-in this spec edits or deletes an existing record in any store (rules 3, 8).
-Admission/privacy/forget contract: registry entries contain no record
-content and no secrets — only IDs, kinds, and evidence anchors (§4), so a
-Cabinet ID inherits no privacy level of its own; a member's privacy level
-stays with the member (rule 4) and a forget on a member leaves its LINK
-events as tombstone-grade metadata (IDs + timestamps, no content),
-consistent with rule 6(b).
+evidence, actor, timestamp, and reason (§4), matching rule 5's event
+shape; nothing in this spec edits or deletes an existing record in any
+store (rules 3, 8).
 
-## 7. Draft amendment to the identity contract (NOT applied)
+Admission/privacy/forget contract — **registry entries are NOT exempt**
+(corrected in fix round 1; the first draft's exemption contradicted
+contract rules 4 and 6):
 
-The following text is drafted for review. It is **not** in force and has
-not been written into `contracts/identity.md`. If approved, it is inserted
-as a new rule 8, and the non-goal "No global ID-minting service in this
-phase" gains the footnote marked [*].
+- Membership is itself a **derived fact / index relation**. Under rule 4,
+  a registry entry (MINT / LINK / UNLINK), the registry index, and every
+  projection generated from them **inherit the privacy level of each
+  record they are derived from**. An entry derived from several members
+  is exposed whole only at the strictest member level involved; retrieval
+  surfaces additionally filter per member, so a query entitled to member
+  A but not member B never sees the entry insofar as it derives from B.
+  Namespace access to the registry itself is scoped accordingly — the
+  registry is not a house-readable side channel around a `private` or
+  `secret-pointer` member.
+- Metadata fields are content-bearing and constrained accordingly:
+  `slug` / `title` / `reason` / `evidence` carry no record content and no
+  secrets (rule 4's `secret-pointer` discipline: pointers, never the
+  secret), and are themselves subject to the inherited privacy level —
+  an association or evidence path can disclose sensitive information
+  even when no source body is present.
+- **Forget (rule 6) applies to linkage in the same operation.** When a
+  member is forgotten (lifecycle INVALIDATE, reason `forget`): (a) the
+  invalidation is recorded; (b) the member's derived entries are **purged
+  or invalidated in the same operation** — its memberships disappear from
+  the registry fold, `INDEX.md`, and every projection (§5.1 included),
+  and MINT `slug`/`title`/`reason` or LINK `evidence`/`reason` fields
+  derived from the forgotten record do not remain readable; what remains
+  is tombstone-grade only — (system, ID), forget timestamp, actor — per
+  rule 6(b); (c) post-forget verification (§5, Step 5 of the backfill
+  plan): a default query returns the tombstone, not the membership.
+  Append-only Git history alone does **not** make retained sensitive
+  metadata compliant: the operative fold, index, and projections must
+  not expose it, metadata minimization (no content in fields, above) is
+  the primary control, and any residual exposure inside historical
+  commits is a named gap for a recorded owner decision (rule 7), never
+  silently accepted.
 
-> **8. Linkage keys (Cabinet IDs).** A record MAY carry at most one
-> Cabinet ID (`cab-NNNN`) in addition to its native ID. A Cabinet ID
-> identifies a **work area** — a set of records, in one or more systems,
-> that concern the same line of work — and never the record itself.
-> A Cabinet ID is not an identity under rules 1–2: citations remain
-> (owning-system, native-ID) pairs, optionally annotated with the record's
-> Cabinet ID; native IDs are never renamed, re-keyed, or superseded by a
-> Cabinet ID. Cabinet IDs are minted only by the Cabinet Registrar (the
-> append-only registry in `docs/cabinet-registry/`), are sequential and
-> never reused, and are assigned without reference to any record's content.
-> Membership changes are append-only registry events (LINK / UNLINK with
-> evidence, actor, timestamp, reason). A record's Cabinet ID confers no
-> execution authority and merges no semantics: members of one work area
-> keep their own kinds, lifecycles, and owners.
+## 7. Draft clarification of identity rule 1 (DRAFT — for Tân's ratification, NOT applied)
+
+Fix round 1 replaced the first draft's proposed new "rule 8" with this
+narrower instrument, per review Part B: the contract does not
+categorically ban a typed foreign reference, so what is needed is a
+**clarification of rule 1**, not an exemption-granting amendment. The
+following text is a **DRAFT for Tân's ratification**. It is **not** in
+force, has **not** been written into `contracts/identity.md`, and this
+fix round applies nothing to the contract itself. If ratified, it is
+recorded as a clarification note under rule 1 in `contracts/identity.md`
+by a recorded decision, and the non-goal "No global ID-minting service in
+this phase" gains the footnote marked [*].
+
+> **Clarification of rule 1 (draft).** "Carries exactly one ID" in rule 1
+> means exactly one **native identity**: the ID assigned once by the
+> object's owning system. Typed references to other objects' IDs are
+> references, not identities — the contract itself requires them (rules
+> 2, 5, 7) — and rule 1 does not prohibit them. A Cabinet ID (`cab-NNNN`)
+> carried by a record is such a reference: a foreign key to a separately
+> identified **work-area grouping**, never an identifier of the record
+> itself. It never renames, re-keys, or supersedes the native ID; a
+> record is addressed and cited only by its native (owning-system, ID)
+> pair, which MAY be annotated with its Cabinet ID — the annotation never
+> substitutes for the pair. A bare Cabinet ID identifies a work area
+> only, within the Cabinet namespace. Primary/secondary/pending
+> membership follows the Cabinet spec's policy; shared membership asserts
+> only "concerns this work area" and merges no kinds, lifecycles, or
+> semantics (rule 7). **No admission, dispatch, lease/fence, closure,
+> ownership, or execution-authority decision may be inferred from a
+> Cabinet match** (rule 4 is unaffected). Cabinet IDs are allocated only
+> by the Cabinet Registrar, sequentially, never reused, and without
+> reference to any record's content; membership changes are append-only
+> registry events (LINK / UNLINK, each with evidence, actor, timestamp,
+> and reason).
 >
-> [*] The Cabinet Registrar is a registry-keeping function of the PAI Repo
-> program, not a runtime ID-minting service; owning systems still mint all
-> native IDs.
+> [*] The Cabinet Registrar **is** the central allocator of grouping keys
+> for the Cabinet namespace — a registry-keeping function of the PAI Repo
+> program, deliberately not a runtime service. Owning systems still mint
+> all native IDs. This footnote records that scope honestly: the
+> non-goal bars a global runtime ID-minting service; the Registrar's
+> central grouping-key allocation is the recorded exception, and it
+> stands or falls with the ratification decision itself.
 
 ## 8. What this spec deliberately does not do
 

@@ -17,3 +17,7 @@
   DB mapped before any endpoint is touched; no raw DB merge); Phase 4 = context library + usage
   ledger (gate: 1 week of real lane usage vs the TokenEconomizer baseline); Phase 5 = source
   provenance + archive proposals (Tan approves the archive list; nothing is self-deleted).
+- **Count correction (2026-11-05, Phase 3 slice-1 fix round 1):** the "19/63 spine tasks" figure in
+  the evidence summary above was corrected by the slice-1 Codex review's recount of the Phase 0
+  appendix: **17 tasks / 25 claims / 46 remaining**. The decision itself (option 1 — Phases 3–5 GO,
+  in order) stands unchanged.
