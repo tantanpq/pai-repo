@@ -20,6 +20,13 @@ deterministic.
    (principal-only), `secret-pointer` (the record stores only a pointer to
    where the secret lives — never the secret itself). A record's privacy
    level travels with every derived fact and index entry made from it.
+
+   **Default for unmarked claim-register records (decided by Tan, 2026-11-05 —
+   `docs/decisions/DECISION_2026-11-05_UNMARKED_DEFAULT_HOUSE.md`):** a
+   claim-register record carrying no `privacy` field is `house`. This ratifies
+   as policy the default the Phase 2 retrieval implementation applies in code
+   (namespace `room:decisions`). An explicit field always wins; other
+   namespaces are unaffected.
 5. Agent-private stores (Codex, Grok, Gemini/Antigravity, Claude histories)
    are outside PAI namespaces. Only explicit, scoped, provenance-preserving
    exports from them may be admitted; raw histories are never merged.
