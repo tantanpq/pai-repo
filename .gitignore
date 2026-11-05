@@ -1,0 +1,26 @@
+# pai-repo — live state NEVER enters this repo (plan §5/§6)
+
+# Live databases and their sidecars
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*-wal
+*-shm
+
+# Credentials and secrets — pointers only, never contents
+.env
+.env.*
+**/secrets/
+**/credentials/
+*.key
+*.pem
+
+# Runtime state (rebuildable indexes, queues, logs, snapshots)
+runtime/
+state/
+**/runtime/
+*.log
+__pycache__/
+node_modules/
+.DS_Store
