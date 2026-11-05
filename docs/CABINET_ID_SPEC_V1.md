@@ -466,15 +466,20 @@ handled as a block, never as a note:
   forget applies to any of its members, this treatment governs, and
   "stands forever" is never a promise above the forget obligations.
 
-## 7. Draft clarification of identity rule 1 (DRAFT — for Tân's ratification, NOT applied)
+## 7. Clarification of identity rule 1 (RATIFIED 2026-11-05 — applied to contracts/identity.md)
+
+> **RATIFIED by Tân, main chat, 2026-11-05 12:16 PT (option 1, as drafted)** and applied to
+> `contracts/identity.md` (clarification note under rule 1 + footnote [*] on the non-goals).
+> Decision record: `docs/decisions/DECISION_2026-11-05_RULE1_CLARIFICATION_RATIFIED.md`.
+> The text below is the ratified text, preserved as ratified.
 
 Fix round 1 replaced the first draft's proposed new "rule 8" with this
 narrower instrument, per review Part B: the contract does not
 categorically ban a typed foreign reference, so what is needed is a
 **clarification of rule 1**, not an exemption-granting amendment. The
-following text is a **DRAFT for Tân's ratification**. It is **not** in
-force, has **not** been written into `contracts/identity.md`, and this
-fix round applies nothing to the contract itself. If ratified, it is
+following text was the **DRAFT for Tân's ratification**; it is now in
+force as ratified (see the banner above) and **has** been written into
+`contracts/identity.md` by the ratification commit. If ratified, it is
 recorded as a clarification note under rule 1 in `contracts/identity.md`
 by a recorded decision, and the non-goal "No global ID-minting service in
 this phase" gains the footnote marked [*].
