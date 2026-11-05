@@ -34,12 +34,26 @@ CLI:
   registrar.py forget-member --registry PATH --expected-head HEX
                        --system SYS --id MEMBER --actor ACTOR
                        --evidence DIGEST-BOUND [--at ISO]
+                       [--repo GITDIR --registry-rel RELPATH
+                        [--needle STR]...]
+  registrar.py scan-history --repo GITDIR --registry-rel RELPATH
+                       --member SYSTEM:ID [--needle STR]...
+
+Forget (spec §6) is complete only when the RETAINED HISTORY is clean
+too: `scan-history` checks every retained Git object of every registry
+file (REGISTRY.jsonl, INDEX.md, projections — including historical
+INDEX/projection blobs) for beyond-tombstone payload of a member, and
+`forget-member --repo` runs that scan BEFORE mutating anything: an
+exposure BLOCKS the forget and names the treatment required (a
+rule-7 recorded owner decision authorizing treatment of the affected
+objects). The scan is read-only; it never treats anything itself.
 """
 import argparse
 import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -78,6 +92,21 @@ class StaleHeadError(RegistryError):
 
 class ValidationError(RegistryError):
     pass
+
+
+class ExposureBlockedError(RegistryError):
+    """A forget is BLOCKED by retained-history exposure (§6 history
+    rule): carries the scan findings and the treatment required. The
+    block stands until a rule-7 recorded owner decision's treatment
+    has been executed and a re-scan comes back clean — there is no
+    'named gap' state."""
+
+    def __init__(self, findings, treatment):
+        self.findings = findings
+        self.treatment = treatment
+        super().__init__(
+            f"forget blocked by {len(findings)} retained-history "
+            f"exposure finding(s); treatment required: {treatment}")
 
 
 def now_iso():
@@ -484,6 +513,46 @@ def parse_index_labels(index_text):
     return labels
 
 
+def parse_index_label_sources(index_text):
+    """Label provenance from INDEX.md's "Label provenance" section:
+    {cabinet_id: "system:id"} for labels recorded as derived from a
+    specific member's source record. Labels without an entry are
+    operator labels (coined by the Registrar/operator, not sourced
+    from a member record)."""
+    sources = {}
+    section = extract_section(index_text, "## Label provenance")
+    for line in section.splitlines():
+        m = re.match(r"^-\s*(cab-\d{4,})\s*<=\s*(\S+)\s*$", line)
+        if m:
+            sources[m.group(1)] = m.group(2)
+    return sources
+
+
+def forgotten_members(events):
+    """{(system, id)} of members whose memberships were purged by a
+    forget (a forget-consequence UNLINK in the accepted history)."""
+    out = set()
+    for ev in events:
+        if ev.get("type") == "UNLINK" \
+                and ev.get("reason", "").partition("@")[0] \
+                == "forget-consequence":
+            mem = ev.get("member") or {}
+            out.add((mem.get("system"), mem.get("id")))
+    return out
+
+
+def _normalize_label(value):
+    """A labels-file value is either a plain string (an operator
+    label) or {"label": str, "derived_from": "system:id"} recording
+    that the label was sourced from that member's record. Returns
+    (label, source_or_None)."""
+    if isinstance(value, str):
+        return value, None
+    if isinstance(value, dict) and isinstance(value.get("label"), str):
+        return value["label"], value.get("derived_from")
+    raise RegistryError(f"bad label value: {value!r}")
+
+
 def extract_section(index_text, heading):
     """Return the verbatim section starting at `heading` up to the next
     '## ' heading or EOF (used to carry pending exhibits / recovery
@@ -499,7 +568,7 @@ def extract_section(index_text, heading):
 
 
 def build_index(state, head, n_lines, labels, pending_section="",
-                recovery_section="", note=""):
+                recovery_section="", note="", provenance_section=""):
     idx = ["# Cabinet Registrar — Index", "",
            "Human index of the Cabinet Registrar registry (`REGISTRY.jsonl`, "
            "the source of",
@@ -537,6 +606,9 @@ def build_index(state, head, n_lines, labels, pending_section="",
                 f"{s} {n}" for s, n in sorted(per_system.items())) + "."
                if per_system else "."),
             ""]
+    if provenance_section:
+        idx.append(provenance_section.rstrip())
+        idx.append("")
     if pending_section:
         idx.append(pending_section.rstrip())
         idx.append("")
@@ -565,14 +637,52 @@ def project(registry_path, out_dir=None, labels=None, generated_at=None):
     if os.path.exists(index_path):
         with open(index_path, encoding="utf-8") as f:
             old_index = f.read()
+    # INDEX labels derive ONLY from the post-fold state (spec §6;
+    # fix round 2, finding C2): a label survives a rebuild only while
+    # its Cabinet still has active members in the accepted fold, and a
+    # label recorded as derived from a member's source record is
+    # purged in the same operation that forgets that member — it is
+    # never merged back in from the old INDEX. Operator labels (no
+    # recorded source) are carried while their Cabinet is non-empty.
     merged_labels = parse_index_labels(old_index)
+    sources = parse_index_label_sources(old_index)
     if labels:
-        merged_labels.update(labels)
+        for cab, value in labels.items():
+            text, src = _normalize_label(value)
+            merged_labels[cab] = text
+            if src:
+                sources[cab] = src
+            else:
+                sources.pop(cab, None)
+    forgotten = forgotten_members(events)
+    live = {cab for cab, c in state["cabinets"].items() if c["members"]}
+    kept_labels, kept_sources = {}, {}
+    for cab, text in merged_labels.items():
+        if text == "—" or cab not in live:
+            continue
+        src = sources.get(cab)
+        if src:
+            sysname, _, mid = src.partition(":")
+            if (sysname, mid) in forgotten:
+                continue  # purged with its source member's forget
+            kept_sources[cab] = src
+        kept_labels[cab] = text
+    provenance_section = ""
+    if kept_sources:
+        provenance_section = "\n".join(
+            ["## Label provenance", "",
+             "Labels below were sourced from the named member's source",
+             "record; a forget of that member purges the label in the",
+             "same operation (spec §6). Labels not listed here are",
+             "operator labels.", ""]
+            + [f"- {cab} <= {kept_sources[cab]}"
+               for cab in sorted(kept_sources)])
     new_index = build_index(
-        state, head, len(lines), merged_labels,
+        state, head, len(lines), kept_labels,
         pending_section=extract_section(old_index, "## Pending exhibits"),
         recovery_section=extract_section(old_index, "## Recovery records"),
-        note=f"projection rebuilt {generated_at} from the accepted fold")
+        note=f"projection rebuilt {generated_at} from the accepted fold",
+        provenance_section=provenance_section)
     with open(index_path, "w", encoding="utf-8") as f:
         f.write(new_index)
     # Readback: re-read everything and re-derive.
@@ -590,10 +700,151 @@ def project(registry_path, out_dir=None, labels=None, generated_at=None):
                                       for c in state["cabinets"].values())}
 
 
+# ------------------------------------------------- retained-history scan
+
+REGISTRY_FILE_BASENAMES = ("REGISTRY.jsonl", "INDEX.md", "PROJECTION.json")
+TREATMENT_REQUIRED = (
+    "a recorded owner decision under contract rule 7 authorizing "
+    "treatment of the affected Git objects (history rewrite replacing "
+    "the beyond-tombstone payload with tombstone-grade content, or "
+    "removal of the affected objects), executed and then verified by "
+    "a clean re-scan of every retained Git object of every registry "
+    "file")
+
+
+def _git(repo, *argv):
+    r = subprocess.run(["git", "-C", repo, *argv], capture_output=True)
+    if r.returncode != 0:
+        raise RegistryError(
+            f"git {' '.join(argv)} failed: "
+            f"{r.stderr.decode('utf-8', 'replace')[:300]}")
+    return r.stdout
+
+
+def _scan_registry_blob(text, sha, path, system, member_id):
+    """REGISTRY.jsonl history lines are tombstone-grade BY
+    CONSTRUCTION (the §6 closed inventory): a line naming the member
+    is compliant exactly when it parses and validates within that
+    inventory. Anything else naming the member is an exposure."""
+    findings = []
+    for i, line in enumerate(text.splitlines(), 1):
+        if member_id not in line:
+            continue
+        try:
+            ev = json.loads(line, object_pairs_hook=_pairs_no_dupes)
+        except Exception as e:  # noqa: BLE001 — reported, not raised
+            findings.append({
+                "object": sha, "path": path,
+                "kind": "registry-line-unparseable", "line": i,
+                "detail": f"line names {system}:{member_id} and does "
+                          f"not parse: {e}"})
+            continue
+        mem = ev.get("member") or {}
+        if mem.get("system") != system or mem.get("id") != member_id:
+            continue
+        try:
+            validate_event(ev)
+        except ValidationError as e:
+            findings.append({
+                "object": sha, "path": path,
+                "kind": "registry-line-out-of-inventory", "line": i,
+                "detail": f"line names {system}:{member_id} outside "
+                          f"the §6 closed inventory: {e}"})
+    return findings
+
+
+def _scan_surface_blob(text, sha, path, member_id, needles):
+    """INDEX.md and projection blobs are purgeable surfaces: their
+    CURRENT versions are purged by the forget operation, but any
+    retained historical blob still carrying the member's ID or a
+    label derived from the member is beyond-tombstone payload — an
+    exposure (§6 history rule)."""
+    findings = []
+    lines = text.splitlines()
+    for kind, needle in [("surface-member-id", member_id)] + \
+            [("surface-label", n) for n in needles]:
+        if not needle:
+            continue
+        for i, line in enumerate(lines, 1):
+            if needle in line:
+                findings.append({
+                    "object": sha, "path": path, "kind": kind,
+                    "line": i,
+                    "detail": f"{needle!r} retained in a historical "
+                              f"surface blob: {line.strip()[:120]!r}"})
+                break
+    return findings
+
+
+def scan_history(repo_path, registry_rel, system, member_id, needles=()):
+    """§6 retained-history verification (fix round 2, finding C2).
+
+    Checks EVERY retained Git object of every registry file — all
+    blobs reachable from any ref, plus unattributed objects in the
+    store — for beyond-tombstone payload of the member (system,
+    member_id): REGISTRY.jsonl lines must stay within the closed
+    tombstone-grade inventory; INDEX.md / projection blobs must not
+    carry the member's ID or any caller-supplied label derived from
+    the member (`needles`). READ-ONLY: this function never writes to
+    the repo. Returns a JSON-serializable verdict; "blocked" is True
+    exactly when findings exist."""
+    registry_rel = registry_rel.strip("/")
+    member = f"{system}:{member_id}"
+    paths = {}
+    listing = _git(repo_path, "rev-list", "--objects", "--all") \
+        .decode("utf-8", "replace")
+    for line in listing.splitlines():
+        sha, _, p = line.partition(" ")
+        if p:
+            paths.setdefault(sha, p)
+    objects = _git(repo_path, "cat-file", "--batch-all-objects",
+                   "--batch-check=%(objectname) %(objecttype)") \
+        .decode("utf-8", "replace").splitlines()
+    findings, n_blobs, n_registry_blobs = [], 0, 0
+    for entry in objects:
+        sha, _, otype = entry.partition(" ")
+        if otype != "blob":
+            continue
+        n_blobs += 1
+        path = paths.get(sha)
+        base = os.path.basename(path) if path else None
+        is_registry_file = bool(path) \
+            and os.path.dirname(path) == registry_rel \
+            and base in REGISTRY_FILE_BASENAMES
+        if path is not None and not is_registry_file:
+            continue
+        text = _git(repo_path, "cat-file", "blob", sha) \
+            .decode("utf-8", "replace")
+        if is_registry_file:
+            n_registry_blobs += 1
+            if base == "REGISTRY.jsonl":
+                findings += _scan_registry_blob(
+                    text, sha, path, system, member_id)
+            else:
+                findings += _scan_surface_blob(
+                    text, sha, path, member_id, needles)
+        elif member_id in text and ("cabinet_id" in text
+                                    or "Cabinet Registrar" in text
+                                    or "cabinet-membership" in text):
+            findings.append({
+                "object": sha, "path": None,
+                "kind": "unattributed-registry-payload",
+                "detail": f"object names {member} in registry-shaped "
+                          f"content but has no retained path"})
+    return {"member": member, "repo": os.path.abspath(repo_path),
+            "registry_dir": registry_rel,
+            "objects_scanned": len(objects), "blobs_scanned": n_blobs,
+            "registry_blobs_scanned": n_registry_blobs,
+            "findings": findings, "blocked": bool(findings),
+            "treatment_required": TREATMENT_REQUIRED if findings
+            else None}
+
+
 # ----------------------------------------------------------------- forget
 
 def forget_member(registry_path, system, member_id, expected_head,
-                  actor, evidence, at=None):
+                  actor, evidence, at=None, repo=None, registry_rel=None,
+                  needles=()):
     """§6 same-operation purge, registry side (fix round 1, finding C2).
 
     Appends a `forget-consequence` UNLINK for EVERY active membership of
@@ -608,7 +859,28 @@ def forget_member(registry_path, system, member_id, expected_head,
     never member content or labels, so nothing beyond a tombstone
     resurfaces from them. A member with no active memberships appends
     nothing (any previously reversed links stay reversed) and the
-    projections are still rebuilt. Returns a summary dict."""
+    projections are still rebuilt. Returns a summary dict.
+
+    When `repo` (a Git working tree) and `registry_rel` (the registry
+    directory's path inside it) are supplied, the retained-history
+    scan runs FIRST, before any mutation: an exposure raises
+    ExposureBlockedError, the registry is left byte-identical, and
+    the error names the treatment required (a rule-7 recorded owner
+    decision's executed treatment + a clean re-scan). Only a clean
+    scan lets the operative purge proceed — a forget with retained
+    exposure is a blocked path, never a completed forget with a
+    documented gap (§6 history rule)."""
+    scan = None
+    if repo is not None:
+        if not registry_rel:
+            raise RegistryError(
+                "forget with a repo requires registry_rel (the "
+                "registry directory's path inside the repo)")
+        scan = scan_history(repo, registry_rel, system, member_id,
+                            needles)
+        if scan["blocked"]:
+            raise ExposureBlockedError(scan["findings"],
+                                       TREATMENT_REQUIRED)
     lines, events = read_registry(registry_path)
     verify_chain(lines, events)
     state = fold_events(events)
@@ -632,8 +904,14 @@ def forget_member(registry_path, system, member_id, expected_head,
         appended = out["appended"]
         head = out["head"]
     proj = project(registry_path)
-    return {"member": f"{system}:{member_id}", "unlinked": appended,
-            "head": head, "projection": proj}
+    result = {"member": f"{system}:{member_id}", "unlinked": appended,
+              "head": head, "projection": proj}
+    if scan is not None:
+        result["history_scan"] = {
+            "blocked": False,
+            "registry_blobs_scanned": scan["registry_blobs_scanned"],
+            "objects_scanned": scan["objects_scanned"]}
+    return result
 
 
 # ---------------------------------------------------------------- recover
@@ -742,6 +1020,15 @@ def main():
     p.add_argument("--actor", required=True)
     p.add_argument("--evidence", required=True)
     p.add_argument("--at")
+    p.add_argument("--repo")
+    p.add_argument("--registry-rel")
+    p.add_argument("--needle", action="append", default=[])
+    p = sub.add_parser("scan-history")
+    p.add_argument("--repo", required=True)
+    p.add_argument("--registry-rel", required=True)
+    p.add_argument("--member", required=True,
+                   help="owning-system:native-id, e.g. claim-register:C-0001")
+    p.add_argument("--needle", action="append", default=[])
     args = ap.parse_args()
     try:
         if args.cmd == "verify":
@@ -773,7 +1060,19 @@ def main():
         elif args.cmd == "forget-member":
             out = forget_member(args.registry, args.system, args.id,
                                 args.expected_head, args.actor,
-                                args.evidence, at=args.at)
+                                args.evidence, at=args.at,
+                                repo=args.repo,
+                                registry_rel=args.registry_rel,
+                                needles=tuple(args.needle))
+        elif args.cmd == "scan-history":
+            system, _, member_id = args.member.partition(":")
+            if not system or not member_id:
+                raise RegistryError(
+                    "--member must be owning-system:native-id")
+            out = scan_history(args.repo, args.registry_rel, system,
+                               member_id, needles=tuple(args.needle))
+            print(json.dumps(out, ensure_ascii=False, indent=1))
+            return 3 if out["blocked"] else 0
     except RegistryError as e:
         print(json.dumps({"ok": False, "error": f"{type(e).__name__}: {e}"}))
         return 2

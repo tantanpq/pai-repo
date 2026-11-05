@@ -417,6 +417,58 @@ class TestForgetMember(ScratchCase):
         self.assertEqual(self.bytes_now(), before)
 
 
+class TestForgetLabels(ScratchCase):
+    """Fix round 2 (finding C2): INDEX labels derive only from the
+    post-forget fold. A label sourced from a forgotten member's
+    record is purged in the same operation and never merged back in;
+    a label on a Cabinet left empty by the forget is dropped; an
+    operator label on a still-populated Cabinet survives."""
+
+    def _index(self):
+        with open(os.path.join(self.tmp.name, "INDEX.md"),
+                  encoding="utf-8") as f:
+            return f.read()
+
+    def test_member_derived_label_purged_on_forget(self):
+        out = self.genesis()  # cab-0001: C-0001 + C-0002
+        R.project(self.reg, generated_at=AT, labels={
+            "cab-0001": {"label": "target-work-area",
+                         "derived_from": "claim-register:C-0001"}})
+        text = self._index()
+        self.assertIn("target-work-area", text)
+        self.assertIn("- cab-0001 <= claim-register:C-0001", text)
+        R.forget_member(self.reg, "claim-register", "C-0001",
+                        out["head"], ACTOR, EV, at=AT)
+        text = self._index()
+        self.assertNotIn("target-work-area", text)
+        self.assertNotIn("Label provenance", text)
+        self.assertIn("| cab-0001 | — |", text)
+        self.assertIn("C-0002", text)  # bystander membership intact
+        # A later rebuild must not merge the label back in either.
+        R.project(self.reg, generated_at=AT)
+        self.assertNotIn("target-work-area", self._index())
+
+    def test_plain_label_dropped_when_cabinet_empties(self):
+        out = R.append_events(self.reg, [
+            mint(), link("cab-0001", None, "C-0009")], R.GENESIS_HASH)
+        R.project(self.reg, generated_at=AT,
+                  labels={"cab-0001": "solo-area-label"})
+        self.assertIn("solo-area-label", self._index())
+        R.forget_member(self.reg, "claim-register", "C-0009",
+                        out["head"], ACTOR, EV, at=AT)
+        text = self._index()
+        self.assertNotIn("solo-area-label", text)
+        self.assertIn("| cab-0001 | — |", text)
+
+    def test_operator_label_survives_while_cabinet_nonempty(self):
+        out = self.genesis()
+        R.project(self.reg, generated_at=AT,
+                  labels={"cab-0001": "operator-area"})
+        R.forget_member(self.reg, "claim-register", "C-0001",
+                        out["head"], ACTOR, EV, at=AT)
+        self.assertIn("operator-area", self._index())
+
+
 class TestIndexRegeneration(ScratchCase):
     def test_labels_and_pending_carried(self):
         self.genesis()
