@@ -9,10 +9,17 @@ source of truth.
 Contract conformance:
   - contracts/identity.md: record IDs are namespaced by owning system
     (`claim-register:`, `vm-spine:`, `vm-workspace:`, `muse-memory:`,
-    `goal-workspaces:`); content_hash detects change only, never identity;
-    every record carries a `path#line` provenance anchor — a record without
-    a resolvable anchor is an orphan and is dropped + counted (rule 6,
-    mirroring Knowledge Room's ACTIVE-evidence requirement).
+    `goal-workspaces:`); content_hash detects change only, never identity.
+    File-derived record IDs are stable anchor identities (owning file +
+    heading/bullet anchor slug + same-file ordinal): inserting or editing
+    lines elsewhere in a file does NOT re-key a record (fix round 1, Codex
+    Phase 2 review blocker 7; scheme marker `anchor-slug-v2` in the
+    manifest — one-time re-mint from the pilot's `#L<line>` IDs, mapped by
+    the unchanged (source_path, source_anchor) pair). Every record carries
+    a `path#line` provenance anchor — a record whose source does not exist
+    or whose anchor does not resolve is an orphan and is dropped + counted
+    (rule 6, mirroring Knowledge Room's ACTIVE-evidence requirement:
+    sourceRefs + evidence + reopen path, enforced at admission).
   - contracts/lifecycle.md: records carry `lifecycle` (unadmitted /
     admitted / invalidated / superseded / expired), `valid_at` /
     `invalid_at` where the source provides them.
@@ -179,7 +186,8 @@ SOURCE_SYSTEM = {"claim": "claim-register", "task": "vm-spine",
 
 
 def base_record(local_id, kind, domain, text, source_path, anchor, meta, indexed_at,
-                lifecycle="admitted", privacy="house", valid_at=None, invalid_at=None):
+                lifecycle="admitted", privacy="house", valid_at=None, invalid_at=None,
+                salience=0.0):
     system = SOURCE_SYSTEM[kind]
     tags = [f"domain:{slugify(domain)}", f"kind:{KIND_TAG[kind]}", f"src:{SRC_TAG[kind]}"]
     return {
@@ -199,6 +207,13 @@ def base_record(local_id, kind, domain, text, source_path, anchor, meta, indexed
         "valid_at": valid_at,
         "invalid_at": invalid_at,
         "privacy": privacy,
+        # KR salience: the query layer's relevance tie-break field
+        # (score desc -> salience desc -> id asc, knowledge-room.js
+        # compile sort). Sources rarely declare it today; the indexer
+        # carries a source-declared numeric value when present and 0.0
+        # otherwise — the ORDER is KR's, the population is the adaptation
+        # (fix round 1, Codex Phase 2 review blocker 4).
+        "salience": salience,
         "evidence_against": [],
         # Knowledge Room applicability fields (validity.py gate inputs).
         # House sources today scope to project PAI and their own domain;
@@ -212,11 +227,54 @@ def base_record(local_id, kind, domain, text, source_path, anchor, meta, indexed
     }
 
 
+_LINE_COUNT_CACHE = {}
+_LINE_ANCHOR_RE = re.compile(r"line (\d+)")
+
+
+def _line_count(path):
+    # Keyed by (path, size, mtime): a source rewritten between two builds
+    # in the same process must be re-counted, not served from cache.
+    try:
+        st = os.stat(path)
+        key = (path, st.st_size, st.st_mtime_ns)
+    except OSError:
+        return -1
+    if key not in _LINE_COUNT_CACHE:
+        try:
+            with open(path, "rb") as f:
+                _LINE_COUNT_CACHE[key] = sum(1 for _ in f)
+        except OSError:
+            _LINE_COUNT_CACHE[key] = -1
+    return _LINE_COUNT_CACHE[key]
+
+
+def anchor_resolves(path, anchor):
+    """Knowledge Room's ACTIVE-evidence conditions, mapped onto this
+    package's records (fix round 1, Codex Phase 2 review blocker 3):
+    KR requires an ACTIVE item to carry sourceRefs + evidenceFor +
+    reopenPath, all nonempty (knowledge-room.js validateItem ->
+    ACTIVE_KNOWLEDGE_EVIDENCE_REQUIRED). Here the record's evidence IS
+    its provenance anchor and the anchor IS its reopen path, so the
+    conditions become: the source file exists, and the anchor resolves
+    inside it (a `line N` anchor with N within the file's line count;
+    a spine `tasks.task_id=` locator, minted only from rows actually
+    read out of the snapshot, resolves by construction)."""
+    if not path or not anchor:
+        return False
+    if not os.path.exists(path):
+        return False
+    m = _LINE_ANCHOR_RE.match(anchor)
+    if m:
+        n = int(m.group(1))
+        return 1 <= n <= _line_count(path)
+    return True
+
+
 def admit(records, rec, orphans):
     """Identity contract rule 6 + Knowledge Room ACTIVE-evidence rule: a
     record without a resolvable source anchor is an orphan and MUST NOT be
     admitted. Counted, never silently dropped."""
-    if not rec.get("source_path") or not rec.get("source_anchor"):
+    if not anchor_resolves(rec.get("source_path"), rec.get("source_anchor")):
         orphans.append(rec.get("id"))
         return
     records.append(rec)
@@ -225,9 +283,11 @@ def admit(records, rec, orphans):
 # ---------------------------------------------------------------- claims
 def _register_events(path):
     """Pass 1 over a register file: collect INVALIDATE events by claim id,
-    and (physical_lineno, parsed object) pairs for pass 2 — anchors must be
+    claim objects by id (for supersession timestamps), and
+    (physical_lineno, parsed object) pairs for pass 2 — anchors must be
     true file line numbers (identity contract: anchors must resolve)."""
     invalidated = {}
+    by_id = {}
     lines = []
     with open(path, encoding="utf-8") as f:
         for lineno, line in enumerate(f, 1):
@@ -239,15 +299,34 @@ def _register_events(path):
             except json.JSONDecodeError:
                 continue
             lines.append((lineno, obj))
-            if isinstance(obj, dict) and obj.get("event") == "INVALIDATE" and obj.get("id"):
+            if not isinstance(obj, dict):
+                continue
+            if obj.get("event") == "INVALIDATE" and obj.get("id"):
                 invalidated[obj["id"]] = obj
-    return invalidated, lines
+            claim = obj.get("claim")
+            if not isinstance(claim, dict):
+                claim = obj
+            if isinstance(claim, dict) and claim.get("id"):
+                by_id[claim["id"]] = claim
+    return invalidated, by_id, lines
+
+
+_LIFECYCLES = ("unadmitted", "admitted", "invalidated", "superseded", "expired")
+
+
+def _event_ts(ev):
+    """Register events timestamp themselves `at` (ISO) in the live format;
+    `date`/`ts` are accepted alternates. (Fix round 1, blocker 8: the
+    indexer previously read only date/ts and dropped C-0253's real
+    2026-11-04T12:21:27+00:00 invalidation time.)"""
+    return ev.get("at") or ev.get("date") or ev.get("ts")
 
 
 def index_claims(path, admitted_source, indexed_at, records, orphans):
     meta = file_meta(path)
-    invalidated, lines = _register_events(path)
+    invalidated, by_id, lines = _register_events(path)
     n = 0
+    ordinal = 0
     for lineno, obj in lines:
         if not isinstance(obj, dict) or obj.get("event") == "INVALIDATE":
             continue
@@ -257,24 +336,71 @@ def index_claims(path, admitted_source, indexed_at, records, orphans):
         text = (claim.get("claim") or "").strip()
         if not text:
             continue
+        ordinal += 1
         cid = claim.get("id")
-        local = cid if cid else f"inbox:L{lineno}"
+        # No owning-system ID in the source: mint an append-stable local
+        # ordinal (blank lines and later edits do not re-key it; the pilot
+        # scheme embedded the physical line number).
+        local = cid if cid else f"{'reg' if admitted_source else 'inbox'}:n{ordinal}"
+        # Lifecycle: a source-declared state is honored (fix round 1,
+        # blocker 8 area: a claim carrying lifecycle=expired + invalid_at
+        # was previously rebuilt as admitted); supersession and INVALIDATE
+        # events then override, events being the terminal authority.
         lifecycle = "admitted" if admitted_source else "unadmitted"
-        invalid_at = None
+        if claim.get("lifecycle") in _LIFECYCLES:
+            lifecycle = claim["lifecycle"]
+        valid_at = claim.get("valid_at") or claim.get("date")
+        invalid_at = claim.get("invalid_at")
+        # Privacy travels verbatim from the source record into the index
+        # (admission-privacy-forget rule 4; fix round 1, blocker 5).
+        privacy = claim.get("privacy") or "house"
+        salience = claim.get("salience")
+        salience = float(salience) if isinstance(salience, (int, float)) \
+            and not isinstance(salience, bool) else 0.0
+        salience = min(1.0, max(0.0, salience))
         extra = {}
+        if claim.get("superseded_by"):
+            lifecycle = "superseded"
+            extra["superseded_by"] = claim["superseded_by"]
+            target = by_id.get(claim["superseded_by"]) or {}
+            # Lifecycle contract rule 2: supersession sets invalid_at —
+            # the superseding record's date is when the old fact ceased
+            # to be in force.
+            invalid_at = invalid_at or target.get("valid_at") or target.get("date")
+        forgotten = False
         if cid and cid in invalidated:
             lifecycle = "invalidated"
             ev = invalidated[cid]
-            invalid_at = ev.get("date") or ev.get("ts")
+            invalid_at = _event_ts(ev) or invalid_at
             extra["invalidated_by"] = ev.get("by")
-        elif claim.get("superseded_by"):
-            lifecycle = "superseded"
-            extra["superseded_by"] = claim["superseded_by"]
-        rec = base_record(local, "claim", claim.get("entity") or "(no entity)", text,
+            if ev.get("reason") == "forget":
+                # Forget (admission-privacy-forget rule 6): the index
+                # entry becomes a tombstone — (system, ID), forget
+                # timestamp and actor remain; the content does not.
+                forgotten = True
+                extra["forgotten"] = True
+                extra["forget_at"] = _event_ts(ev)
+                extra["forget_actor"] = ev.get("actor") or ev.get("by")
+                extra["forget_reason"] = "forget"
+        text_out = text
+        if forgotten:
+            text_out = ""
+        elif privacy == "secret-pointer":
+            # A secret-pointer record stores ONLY a pointer, never the
+            # secret (rule 4): the body text is not carried into the
+            # index at all; the explicit pointer field is, when present.
+            text_out = claim.get("pointer") or ""
+            extra["secret_pointer"] = claim.get("pointer") or f"{path} · line {lineno}"
+        rec = base_record(local, "claim", claim.get("entity") or "(no entity)", text_out,
                           path, f"line {lineno}", meta, indexed_at,
-                          lifecycle=lifecycle, valid_at=claim.get("date"),
-                          invalid_at=invalid_at)
-        rec["admitted"] = admitted_source and lifecycle == "admitted"
+                          lifecycle=lifecycle, privacy=privacy,
+                          valid_at=valid_at, invalid_at=invalid_at,
+                          salience=salience)
+        # `admitted` is SOURCE admission, orthogonal to lifecycle: it is
+        # decided by which register the record came from, on every path
+        # and every lifecycle (fix round 1, blocker 1). The query layer
+        # enforces admission from this field, never from lifecycle alone.
+        rec["admitted"] = admitted_source
         rec["claim_id"] = cid
         rec["claim_status"] = claim.get("status")
         rec["claim_type"] = claim.get("type")
@@ -358,6 +484,34 @@ def chunk_markdown(text):
     return out
 
 
+class _IdMinter:
+    """Stable IDs for file-derived records (identity contract rules 1+3,
+    Cognee's stable-ID/content-hash separation; fix round 1, blocker 7).
+
+    local id = <file-part>#<anchor-slug>[-ordinal]. The anchor slug comes
+    from the chunk's heading/bullet label — identity follows the source
+    SEGMENT, not its physical line offset, so inserting a blank line (or
+    editing another section) never re-keys a record, while content_hash
+    still detects any content change. The -2/-3 suffix disambiguates
+    repeated labels within one file, in document order.
+    """
+
+    def __init__(self, file_part):
+        self.file_part = file_part
+        self.seen = {}
+        self.count = 0
+
+    def mint(self, label):
+        self.count += 1
+        raw = re.sub(r"\*\*", "", (label or "").replace("heading:", ""))
+        slug = re.sub(r"[^\w]+", "-", raw.lower(), flags=re.UNICODE).strip("-")
+        if not slug:
+            slug = f"chunk-{self.count}"
+        n = self.seen.get(slug, 0) + 1
+        self.seen[slug] = n
+        return f"{self.file_part}#{slug}" + (f"-{n}" if n > 1 else "")
+
+
 def domain_from_status(text, path):
     m = re.search(r"^#\s+STATUS\s*[—-]\s*(.+)$", text, re.M)
     if m:
@@ -387,9 +541,10 @@ def index_status_files(indexed_at, records, orphans):
         with open(p, encoding="utf-8", errors="replace") as f:
             text = f.read()
         domain = domain_from_status(text, p)
+        minter = _IdMinter(_rel(p))
         n = 0
         for start, label, body in chunk_markdown(text):
-            rec = base_record(f"{_rel(p)}#L{start}", "status", domain, body,
+            rec = base_record(minter.mint(label), "status", domain, body,
                               p, f"line {start} · {label}", meta, indexed_at)
             admit(records, rec, orphans)
             n += 1
@@ -405,11 +560,12 @@ def index_memory(path, indexed_at, records, orphans):
         text = f.read()
     n = 0
     section = ""
+    minter = _IdMinter("MEMORY.md")
     for start, label, body in chunk_markdown(text):
         if label.startswith("heading:"):
             section = label[len("heading:"):].strip()
         domain = section or "MEMORY"
-        rec = base_record(f"MEMORY.md#L{start}", "memory", domain, body,
+        rec = base_record(minter.mint(label), "memory", domain, body,
                           path, f"line {start} · {label}", meta, indexed_at,
                           privacy="private")
         admit(records, rec, orphans)
@@ -448,8 +604,9 @@ def index_goals(indexed_at, records, orphans):
             with open(p, encoding="utf-8", errors="replace") as f:
                 text = f.read()
             n = 0
+            minter = _IdMinter(f"{slug}/{fname}")
             for start, label, body in chunk_markdown(text):
-                rec = base_record(f"{slug}/{fname}#L{start}", "goal", slug, body,
+                rec = base_record(minter.mint(label), "goal", slug, body,
                                   p, f"line {start} · {label}", meta, indexed_at)
                 rec["goal_slug"] = slug
                 rec["goal_id"] = goal_id
@@ -509,6 +666,9 @@ def build(out_dir):
         by_kind[r["kind"]] = by_kind.get(r["kind"], 0) + 1
     manifest = {
         "tool": "retrieval_index.py v2 (pai-repo Phase 2; port of pai-query-layer pilot)",
+        "id_scheme": "anchor-slug-v2 (fix round 1: file-derived IDs are stable "
+                     "anchor identities, re-minted once from the pilot #L<line> "
+                     "scheme; map old citations via source_path + source_anchor)",
         "built_at": indexed_at,
         "index_file": index_path,
         "total_records": len(records),

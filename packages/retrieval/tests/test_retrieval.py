@@ -435,14 +435,266 @@ class TestPhase2(unittest.TestCase):
             retrieval_query._sqlite_content_fingerprint = orig
         self.assertEqual(states[self.fx["spine"]], "INVALID_FRESHNESS")
 
-    # ---- identity contract rule 6: orphan records are dropped + counted
+    # ---- identity contract rule 6 + KR ACTIVE-evidence rule: orphan
+    # records are dropped + counted. Fix round 1 (Codex Phase 2 review
+    # blocker 3): the anchor must actually RESOLVE — the pre-fix version
+    # of this test accepted a nonexistent path, encoding the hole.
     def test_orphan_rule(self):
         records, orphans = [], []
         retrieval_index.admit(records, {"id": "x:1", "source_path": "", "source_anchor": ""}, orphans)
         self.assertEqual(records, [])
         self.assertEqual(orphans, ["x:1"])
-        retrieval_index.admit(records, {"id": "x:2", "source_path": "/p", "source_anchor": "line 1"}, orphans)
+        retrieval_index.admit(records, {"id": "x:2", "source_path": "/nonexistent/p",
+                                        "source_anchor": "line 1"}, orphans)
+        self.assertEqual(records, [])
+        self.assertEqual(orphans, ["x:1", "x:2"])
+        real = self.fx["claims"]  # exists, a handful of lines
+        retrieval_index.admit(records, {"id": "x:3", "source_path": real,
+                                        "source_anchor": "line 999999"}, orphans)
+        self.assertEqual(records, [])
+        self.assertEqual(orphans, ["x:1", "x:2", "x:3"])
+        retrieval_index.admit(records, {"id": "x:4", "source_path": real,
+                                        "source_anchor": "line 1"}, orphans)
         self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]["id"], "x:4")
+
+
+class TestFixRound1(unittest.TestCase):
+    """Regressions for the 8 blockers in CODEX_REVIEW_PHASE2_2026-11-05.
+    Each test reproduces the reviewer's own probe shape."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="pai-retrieval-fix1-")
+        self.fx = make_fixtures(self.tmp)
+
+    def build(self):
+        manifest, out = build_index(self.tmp, self.fx)
+        with open(os.path.join(out, "retrieval_index.jsonl"), encoding="utf-8") as f:
+            records = [json.loads(l) for l in f if l.strip()]
+        return manifest, out, records
+
+    def rewrite(self, path, lines):
+        with open(path, "w", encoding="utf-8") as f:
+            for obj in lines:
+                f.write((obj if isinstance(obj, str) else json.dumps(obj)) + "\n")
+
+    # ---- blocker 1: terminal-state inbox record stays unadmitted
+    def test_blocker1_inbox_superseded_id_lookup(self):
+        with open(self.fx["inbox"], "a", encoding="utf-8") as f:
+            f.write(json.dumps({"id": "C-PROBE-INBOX-SUPERSEDED", "entity": "Widget Domain",
+                                "claim": "inbox secret candidate content",
+                                "superseded_by": "C-9001"}) + "\n")
+        _m, out, records = self.build()
+        rec = [r for r in records if r.get("claim_id") == "C-PROBE-INBOX-SUPERSEDED"][0]
+        self.assertEqual(rec["lifecycle"], "superseded")
+        self.assertIs(rec["admitted"], False)
+        payload = json.loads(run_query(out, "--claim", "C-PROBE-INBOX-SUPERSEDED", "--json"))
+        self.assertEqual(payload["results"], [])
+        payload = json.loads(run_query(out, "--claim", "C-PROBE-INBOX-SUPERSEDED",
+                                       "--json", "--include-unadmitted"))
+        self.assertEqual(len(payload["results"]), 1)
+        self.assertEqual(payload["results"][0]["lc"], "superseded")
+        self.assertIs(payload["results"][0]["adm"], False)
+        # --history alone must NOT surface unadmitted material either
+        out_text = run_query(out, "inbox secret candidate", "--history")
+        self.assertNotIn("inbox secret candidate content", out_text)
+
+    # ---- blocker 1/5: snippet JSON carries lifecycle/admission/privacy/namespace
+    def test_blocker1_snippet_json_labels(self):
+        _m, out, _r = self.build()
+        payload = json.loads(run_query(out, "widget throughput", "--json"))
+        claim_entries = [r for r in payload["results"] if r["k"] == "claim"]
+        self.assertTrue(claim_entries)
+        for e in claim_entries:
+            self.assertEqual(e["lc"], "admitted")
+            self.assertIs(e["adm"], True)
+            self.assertEqual(e["p"], "house")
+            self.assertEqual(e["ns"], "room:decisions")
+        payload = json.loads(run_query(out, "unadmitted widget rumor", "--json",
+                                       "--include-unadmitted"))
+        inbox_entries = [r for r in payload["results"]
+                         if r["i"] == "claim-register:C-REVIEW-UNADMITTED"]
+        self.assertEqual(len(inbox_entries), 1)
+        self.assertEqual(inbox_entries[0]["lc"], "unadmitted")
+        self.assertIs(inbox_entries[0]["adm"], False)
+
+    # ---- blocker 2: --include-unadmitted waives ONLY the state stage
+    def test_blocker2_opt_in_waives_only_state(self):
+        with open(self.fx["inbox"], "a", encoding="utf-8") as f:
+            f.write(json.dumps({"id": "C-PROBE-BYPASS", "entity": "Widget Domain",
+                                "claim": "bypass probe needle content",
+                                "evidence_against": ["counterexample:1"]}) + "\n")
+        _m, out, _r = self.build()
+        # counterevidence still excludes it, opt-in notwithstanding
+        payload = json.loads(run_query(out, "bypass probe needle", "--json", "--full",
+                                       "--include-unadmitted"))
+        self.assertNotIn("C-PROBE-BYPASS", [r.get("claim_id") for r in payload["results"]])
+        reasons = {e["id"]: e["reason"] for e in payload["excluded"]}
+        self.assertEqual(reasons.get("claim-register:C-PROBE-BYPASS"),
+                         "COUNTEREVIDENCE_PRESENT")
+        # applicability still excludes it under a mismatching domain
+        payload = json.loads(run_query(out, "bypass probe needle", "--json", "--full",
+                                       "--include-unadmitted", "--domain", "Other Domain"))
+        self.assertNotIn("C-PROBE-BYPASS", [r.get("claim_id") for r in payload["results"]])
+        reasons = {e["id"]: e["reason"] for e in payload["excluded"]}
+        self.assertEqual(reasons.get("claim-register:C-PROBE-BYPASS"), "DOMAIN_MISMATCH")
+        # freshness still excludes it once its source changes after indexing
+        with open(self.fx["inbox"], "a", encoding="utf-8") as f:
+            f.write(json.dumps({"id": "C-PROBE-LATE", "entity": "Widget Domain",
+                                "claim": "late inbox line"}) + "\n")
+        payload = json.loads(run_query(out, "bypass probe needle", "--json", "--full",
+                                       "--include-unadmitted"))
+        self.assertNotIn("C-PROBE-BYPASS", [r.get("claim_id") for r in payload["results"]])
+        reasons = {e["id"]: e["reason"] for e in payload["excluded"]}
+        self.assertEqual(reasons.get("claim-register:C-PROBE-BYPASS"), "STALE")
+
+    # ---- blocker 4: salience tie-break (KR sort: score, salience, id)
+    def test_blocker4_salience_tie_break(self):
+        self.rewrite(self.fx["claims"], [
+            {"event": "ADMIT", "claim": {
+                "id": "C-AAA-LOW", "entity": "Widget Domain", "type": "STATUS",
+                "status": "current", "salience": 0.1,
+                "claim": "Identical salience probe statement for tie break."}},
+            {"event": "ADMIT", "claim": {
+                "id": "C-ZZZ-HIGH", "entity": "Widget Domain", "type": "STATUS",
+                "status": "current", "salience": 0.9,
+                "claim": "Identical salience probe statement for tie break."}},
+        ])
+        _m, out, _r = self.build()
+        payload = json.loads(run_query(out, "identical salience probe statement",
+                                       "--json", "--full"))
+        ids = [r.get("claim_id") for r in payload["results"]]
+        self.assertEqual(ids[:2], ["C-ZZZ-HIGH", "C-AAA-LOW"])
+
+    # ---- blocker 4: the gate reads validity_domains
+    def test_blocker4_validity_domains_gate(self):
+        rec = {"lifecycle": "admitted", "domain": "GLOBAL", "validity_project": "PAI",
+               "validity_domains": ["RESTRICTED"], "validity_environments": [],
+               "validity_releases": [], "evidence_against": []}
+        ctx = {"project_id": "PAI", "domain": "OTHER", "environment": None, "release": None}
+        self.assertEqual(validity.gate(rec, ctx, "FRESH"), "DOMAIN_MISMATCH")
+        ctx_ok = dict(ctx, domain="RESTRICTED")
+        self.assertIsNone(validity.gate(rec, ctx_ok, "FRESH"))
+
+    # ---- blocker 4: zero-overlap records are reported LOW_RELEVANCE
+    def test_blocker4_zero_overlap_reported(self):
+        _m, out, _r = self.build()
+        payload = json.loads(run_query(out, "xyzzynotpresentanywhere", "--json"))
+        self.assertEqual(payload["results"], [])
+        self.assertGreaterEqual(payload["excluded_reasons"].get("LOW_RELEVANCE", 0), 5)
+        self.assertGreaterEqual(payload["excluded_reasons"].get("STATE_CANDIDATE", 0), 1)
+
+    # ---- blocker 4 boundary: unknown lifecycle is not silently ACTIVE
+    def test_blocker4_unknown_lifecycle_excluded(self):
+        rec = {"lifecycle": "half-baked", "domain": "GLOBAL", "validity_project": "PAI",
+               "evidence_against": []}
+        ctx = {"project_id": "PAI", "domain": None, "environment": None, "release": None}
+        self.assertEqual(validity.gate(rec, ctx, "FRESH"), "STATE_UNKNOWN")
+
+    # ---- blocker 5: privacy propagates; secret-pointer content never surfaces
+    def test_blocker5_privacy_and_secret_pointer(self):
+        with open(self.fx["claims"], "a", encoding="utf-8") as f:
+            f.write(json.dumps({"event": "ADMIT", "claim": {
+                "id": "C-PRIV", "entity": "Widget Domain", "type": "STATUS",
+                "status": "current", "privacy": "private",
+                "claim": "Private sentinel plum content for the widget domain."}}) + "\n")
+            f.write(json.dumps({"event": "ADMIT", "claim": {
+                "id": "C-SECR", "entity": "Widget Domain", "type": "STATUS",
+                "status": "current", "privacy": "secret-pointer",
+                "pointer": "vault:widget/master-key",
+                "claim": "SECRET-SENTINEL-TEXT-xyz must never surface"}}) + "\n")
+        _m, out, records = self.build()
+        priv = [r for r in records if r.get("claim_id") == "C-PRIV"][0]
+        self.assertEqual(priv["privacy"], "private")
+        secr = [r for r in records if r.get("claim_id") == "C-SECR"][0]
+        self.assertEqual(secr["privacy"], "secret-pointer")
+        self.assertEqual(secr["text"], "vault:widget/master-key")
+        self.assertNotIn("SECRET-SENTINEL-TEXT-xyz", json.dumps(records))
+        payload = json.loads(run_query(out, "private sentinel plum", "--json"))
+        entries = [r for r in payload["results"] if r["i"] == "claim-register:C-PRIV"]
+        self.assertEqual(entries[0]["p"], "private")
+        for args in (("--claim", "C-SECR", "--json", "--full"),
+                     ("--claim", "C-SECR"),
+                     ("widget", "--json", "--full")):
+            self.assertNotIn("SECRET-SENTINEL-TEXT-xyz", run_query(out, *args))
+        payload = json.loads(run_query(out, "--claim", "C-SECR", "--json", "--full"))
+        self.assertEqual(payload["results"][0]["secret_pointer"], "vault:widget/master-key")
+
+    # ---- blocker 6: forget leaves a tombstone, content unretrievable
+    def test_blocker6_forget_tombstone(self):
+        self.rewrite(self.fx["claims"], [
+            {"event": "ADMIT", "claim": {
+                "id": "C-FORGET", "entity": "Widget Domain", "type": "STATUS",
+                "status": "current",
+                "claim": "FORGET-PROBE-OLD-CONTENT with unique forgettable words."}},
+            {"event": "INVALIDATE", "id": "C-FORGET", "reason": "forget",
+             "actor": "review-probe", "at": "2026-11-05T00:00:00+00:00"},
+        ])
+        _m, out, records = self.build()
+        rec = [r for r in records if r.get("claim_id") == "C-FORGET"][0]
+        self.assertEqual(rec["text"], "")
+        self.assertIs(rec["forgotten"], True)
+        self.assertEqual(rec["forget_actor"], "review-probe")
+        self.assertEqual(rec["forget_at"], "2026-11-05T00:00:00+00:00")
+        self.assertEqual(rec["invalid_at"], "2026-11-05T00:00:00+00:00")
+        self.assertNotIn("FORGET-PROBE-OLD-CONTENT", json.dumps(records))
+        payload = json.loads(run_query(out, "--claim", "C-FORGET", "--json", "--full"))
+        self.assertEqual(len(payload["results"]), 1)
+        self.assertEqual(payload["results"][0]["text"], "")
+        self.assertIs(payload["results"][0]["forgotten"], True)
+        out_text = run_query(out, "forgettable words")
+        self.assertNotIn("FORGET-PROBE-OLD-CONTENT", out_text)
+
+    # ---- blocker 7: a blank line must not re-key a markdown record
+    def test_blocker7_stable_id_blank_line(self):
+        status_path = os.path.join(self.fx["ws"], "dom-a", "STATUS.md")
+        filler = ("- **Filler note:** routine widget line bookkeeping entry "
+                  "with ordinary operational words and no signal. \n") * 8
+        with open(status_path, "w", encoding="utf-8") as f:
+            f.write("# STATUS — Widget Domain\n\n" + filler +
+                    "- **Throughput locked:** widget line runs 42 units weekly, verified on disk.\n")
+        _m, out, records = self.build()
+        target = [r for r in records if r["kind"] == "status"
+                  and "Throughput locked" in r["text"]][0]
+        with open(status_path, encoding="utf-8") as f:
+            body = f.read()
+        with open(status_path, "w", encoding="utf-8") as f:
+            f.write("\n" + body)
+        out2 = os.path.join(self.tmp, "index2")
+        retrieval_index.build(out2)
+        with open(os.path.join(out2, "retrieval_index.jsonl"), encoding="utf-8") as f:
+            records2 = [json.loads(l) for l in f if l.strip()]
+        target2 = [r for r in records2 if r["content_hash"] == target["content_hash"]
+                   and r["kind"] == "status"][0]
+        self.assertEqual(target2["id"], target["id"])
+        self.assertNotEqual(target2["source_anchor"], target["source_anchor"])
+
+    # ---- blocker 8: INVALIDATE `at` lands in invalid_at; declared
+    # lifecycle/invalid_at are honored
+    def test_blocker8_lifecycle_timestamps(self):
+        self.rewrite(self.fx["claims"], [
+            {"event": "ADMIT", "claim": {
+                "id": "C-0253", "entity": "Probe", "type": "STATE", "status": "current",
+                "claim": "Probe claim invalidated by a later event."}},
+            {"event": "INVALIDATE", "id": "C-0253", "by": "C-0257",
+             "at": "2026-11-04T12:21:27+00:00"},
+            {"event": "ADMIT", "claim": {
+                "id": "C-EXP", "entity": "Probe", "type": "STATE", "status": "current",
+                "lifecycle": "expired", "invalid_at": "2026-11-01T00:00:00+00:00",
+                "claim": "Probe claim that arrived already expired."}},
+        ])
+        _m, out, records = self.build()
+        c253 = [r for r in records if r.get("claim_id") == "C-0253"][0]
+        self.assertEqual(c253["lifecycle"], "invalidated")
+        self.assertEqual(c253["invalid_at"], "2026-11-04T12:21:27+00:00")
+        self.assertEqual(c253["invalidated_by"], "C-0257")
+        cexp = [r for r in records if r.get("claim_id") == "C-EXP"][0]
+        self.assertEqual(cexp["lifecycle"], "expired")
+        self.assertEqual(cexp["invalid_at"], "2026-11-01T00:00:00+00:00")
+        payload = json.loads(run_query(out, "arrived already expired", "--json", "--full"))
+        self.assertNotIn("C-EXP", [r.get("claim_id") for r in payload["results"]])
+        reasons = {e["id"]: e["reason"] for e in payload["excluded"]}
+        self.assertEqual(reasons.get("claim-register:C-EXP"), "STATE_ARCHIVED")
 
 
 if __name__ == "__main__":

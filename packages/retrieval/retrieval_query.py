@@ -154,7 +154,13 @@ def freshness(manifest, index_dir):
                 continue
             states[p] = "FRESH" if cur == indexed else "STALE"
             continue
-        states[p] = "FRESH" if sha256_file(p) == src["sha256"] else "STALE"
+        try:
+            states[p] = "FRESH" if sha256_file(p) == src["sha256"] else "STALE"
+        except Exception:
+            # Any fingerprint failure — SQLite or plain hash — is
+            # INVALID_FRESHNESS, as the KR import table claims (fix
+            # round 1, Codex review area 5 row 4 caveat).
+            states[p] = "INVALID_FRESHNESS"
     return states
 
 
@@ -340,14 +346,17 @@ def run_query(a):
     if a.claim:
         # Explicit lifecycle-inspection lookup (pilot semantics, kept):
         # state/freshness are annotated, not excluded — EXCEPT admission,
-        # which is uniform (blocker-3 fix): unadmitted records still
-        # require --include-unadmitted on every path.
+        # which is uniform (fix round 1, blocker 1): admission is decided
+        # by SOURCE (the record's `admitted` flag), on every path and
+        # every lifecycle — an inbox record in a terminal lifecycle
+        # (superseded/invalidated) is still unadmitted material and still
+        # requires --include-unadmitted here.
         pool = [r for r in pool
                 if r.get("claim_id") == a.claim or r["id"] == f"claim-register:{a.claim}"]
         if not a.include_unadmitted:
             kept = []
             for r in pool:
-                if r.get("lifecycle") == "unadmitted":
+                if r.get("admitted") is False:
                     excluded.append({"id": r["id"], "reason": "STATE_CANDIDATE"})
                 else:
                     kept.append(r)
@@ -359,17 +368,31 @@ def run_query(a):
     # freshness -> counterevidence, all before relevance/budget.
     gated = []
     for r in pool:
+        # Admission precedes the KR state stage and is source-decided:
+        # unadmitted-source records are excluded as STATE_CANDIDATE on
+        # EVERY lifecycle, so a terminal-state inbox record cannot slip
+        # in through the --history waiver either (blocker 1).
+        if r.get("admitted") is False and not a.include_unadmitted:
+            excluded.append({"id": r["id"], "reason": "STATE_CANDIDATE"})
+            continue
         src_state = states.get(r["source_path"], "MISSING")
         gate_state = "STALE" if src_state == "MISSING" else src_state
         reason = validity.gate(r, context, gate_state)
         if reason is None:
             gated.append(r)
             continue
-        # Documented opt-ins waive ONLY the state reason they name.
-        if reason == "STATE_CANDIDATE" and a.include_unadmitted:
-            gated.append(r)
-        elif reason in ("STATE_REVOKED", "STATE_SUPERSEDED") and (a.history or a.include_invalidated):
-            gated.append(r)
+        # Documented opt-ins waive ONLY the state reason they name: the
+        # record is re-gated with the state stage skipped and must still
+        # pass applicability, freshness and counterevidence (blocker 2).
+        waived = (reason == "STATE_CANDIDATE" and a.include_unadmitted) or \
+            (reason in ("STATE_REVOKED", "STATE_SUPERSEDED")
+             and (a.history or a.include_invalidated))
+        if waived:
+            reason2 = validity.gate(r, context, gate_state, waive_state=True)
+            if reason2 is None:
+                gated.append(r)
+            else:
+                excluded.append({"id": r["id"], "reason": reason2})
         else:
             excluded.append({"id": r["id"], "reason": reason})
 
@@ -388,12 +411,16 @@ def run_query(a):
                 # merely repeats fewer of them (heading-chunk trap).
                 coverage = len(qset & set(bm.docs[j])) / len(qset) if qset else 0.0
                 s *= (0.35 + 0.65 * coverage)
-                if validity.normalize_bm25(s) < validity.RELEVANCE_THRESHOLD:
-                    excluded.append({"id": r["id"], "reason": "LOW_RELEVANCE"})
-                else:
-                    scored.append((s, r["id"], r))
-        scored.sort(key=lambda x: (-x[0], x[1]))  # KR: score desc, id asc tie-break
-        results = [r for _s, _i, r in scored[: a.limit]]
+            # KR reports EVERY below-threshold exclusion when the query is
+            # tokenized — a zero-overlap record is LOW_RELEVANCE, never a
+            # silent omission (fix round 1, blocker 4).
+            if validity.normalize_bm25(s) < validity.RELEVANCE_THRESHOLD:
+                excluded.append({"id": r["id"], "reason": "LOW_RELEVANCE"})
+            else:
+                scored.append((s, r))
+        # KR compile sort: score desc, salience desc, knowledgeId asc.
+        scored.sort(key=lambda x: (-x[0], -(x[1].get("salience") or 0.0), x[1]["id"]))
+        results = [r for _s, r in scored[: a.limit]]
     else:
         results = sorted(gated, key=lambda r: r["id"])[: a.limit]
 
@@ -457,7 +484,13 @@ def _emit(a, results, excluded, stale_sources, states, context, weights):
                 cap = min(max(cap, fchars // 6), max(120, fchars // 3), 900)
             except OSError:
                 pass
+            # Labels travel in EVERY output mode (fix round 1, blockers
+            # 1+5): lifecycle, admission, privacy and namespace ride the
+            # snippet payload too, verbatim from the record — an opted-in
+            # unadmitted or private result is never unlabelled.
             entry = {"i": r["id"], "k": r["kind"],
+                     "lc": r["lifecycle"], "adm": bool(r.get("admitted", True)),
+                     "p": r["privacy"], "ns": r["namespace"],
                      "s": make_snippet(r["text"], qtokens, cap, weights),
                      "src": _short_src(r)}
             if fresh_of(r) != "FRESH":
@@ -494,7 +527,9 @@ def _emit(a, results, excluded, stale_sources, states, context, weights):
         tag = f"{r['kind']} · {r['domain']} · {r['lifecycle']}"
         if r["kind"] == "claim":
             tag += f" · status={r.get('claim_status')}"
-            if r.get("lifecycle") == "invalidated":
+            if r.get("forgotten"):
+                tag += f" · ☠ FORGOTTEN at {r.get('forget_at')} by {r.get('forget_actor')}"
+            elif r.get("lifecycle") == "invalidated":
                 tag += f" · ☠ INVALIDATED by {r.get('invalidated_by')}"
             if r.get("superseded_by"):
                 tag += f" · superseded_by={r['superseded_by']}"

@@ -18,9 +18,11 @@ Stdlib only.
 import json
 import math
 import os
+import re
 import sqlite3
 import subprocess
 import sys
+import tempfile
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -34,17 +36,42 @@ def est_tokens(s):
     return math.ceil(len(s) / 4)
 
 
+_HOME_PREFIX_RE = re.compile(r"^/(?:home|Users)/[^/]+(/.*)$")
+
+
+def resolve_old_path(p):
+    """questions.json records old-path files as absolute paths captured on
+    the machine that authored them (the VM's /home/hatch/...). Re-root a
+    foreign home prefix at THIS machine's home so the stock eval runs
+    off-VM (fix round 1, extra (a) — the Phase 2 Codex review's stock run
+    died on exactly this). A path that resolves nowhere is returned
+    unchanged so the read fails loudly with the original name."""
+    if os.path.exists(p):
+        return p
+    m = _HOME_PREFIX_RE.match(p)
+    if m:
+        cand = os.path.expanduser("~") + m.group(1)
+        if os.path.exists(cand):
+            return cand
+    return p
+
+
 def old_path_tokens(paths):
     total = 0
     for p in paths:
+        p = resolve_old_path(p)
         if p.endswith(".db"):
-            con = sqlite3.connect(f"file:{p}?mode=ro", uri=True)
-            try:
-                rows = con.execute("SELECT * FROM tasks").fetchall()
-                text = "\n".join(" | ".join("" if v is None else str(v) for v in row)
-                                 for row in rows)
-            finally:
-                con.close()
+            # Snapshot copy, never an in-place open (the package's
+            # read-only discipline; an in-place mode=ro open can still
+            # create -wal/-shm sidecars beside a WAL-mode source).
+            with retrieval_index._sqlite_snapshot(p, tempfile.gettempdir()) as copy_path:
+                con = sqlite3.connect(copy_path)
+                try:
+                    rows = con.execute("SELECT * FROM tasks").fetchall()
+                    text = "\n".join(" | ".join("" if v is None else str(v) for v in row)
+                                     for row in rows)
+                finally:
+                    con.close()
             total += est_tokens(text)
         else:
             with open(p, encoding="utf-8") as f:
@@ -83,7 +110,10 @@ def main():
         full_out, _ = run_cli(args + ["--full"])
         full_payload = json.loads(full_out)
         full_correct = any(q["gold"] in r["text"] for r in full_payload["results"])
-        old_t = old_path_tokens(q["old_files"])
+        try:
+            old_t = old_path_tokens(q["old_files"])
+        except OSError as e:
+            raise RuntimeError(f"{q['id']}: old-path baseline unreadable: {e}") from e
         new_t = est_tokens(out)
         rows.append({
             "id": q["id"], "kind": q.get("kind") or "cross", "q": q["q"],

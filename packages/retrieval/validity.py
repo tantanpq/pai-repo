@@ -45,12 +45,20 @@ Field mapping (Knowledge Room -> this package's records):
        (lifecycle=invalidated); the explicit-field check is implemented for
        any source that populates it.
   relevance threshold: KR excludes score < 0.16 as LOW_RELEVANCE, where its
-    score is a weighted formula over fields PAI records do not carry
-    (salience, temperature). ADAPTATION: the threshold RULE is imported; the
-    score here is BM25 normalized to [0,1) as s/(s+1). See README.
+    score is a weighted formula over fields PAI records mostly do not
+    carry (temperature; salience only when a source declares it).
+    ADAPTATION: the threshold RULE is imported; the score here is BM25
+    normalized to [0,1) as s/(s+1). See README.
   budget: KR budget is an integer in [1, 32] (default 8), applied after
-    relevance sorting; out-of-range budget is an error
-    (KNOWLEDGE_BUDGET_INVALID). Imported as the --limit bounds.
+    relevance sorting (KR order: score desc, salience desc, knowledgeId
+    asc — the query layer sorts identically); out-of-range budget is an
+    error (KNOWLEDGE_BUDGET_INVALID). Imported as the --limit bounds.
+  applicability: KR checks item.validity.projectId and item.domain, then
+    environment/release lists. This package additionally reads the
+    record's declared validity_domains scope (fix round 1).
+  unknown lifecycle: KR validates its state enum up front; an unmapped
+    house lifecycle is excluded as STATE_UNKNOWN, never silently ACTIVE
+    (fix round 1).
 
 Pure functions, stdlib only, no I/O. The query layer supplies per-source
 freshness states computed by its STALE gate.
@@ -84,7 +92,12 @@ def check_budget(budget):
 
 
 def kr_state(record):
-    return STATE_MAP.get(record.get("lifecycle", "admitted"), "ACTIVE")
+    """Map the house lifecycle onto KR states. KR validates its state enum
+    before compiling (knowledge-room.js validateItem -> KNOWLEDGE_ITEM_ENUM_INVALID),
+    so an unknown house lifecycle must NOT silently become ACTIVE: it maps
+    to None here and gate() excludes it as STATE_UNKNOWN (fix round 1,
+    Codex Phase 2 review area 5 boundary finding)."""
+    return STATE_MAP.get(record.get("lifecycle", "admitted"))
 
 
 def _slug(s):
@@ -106,6 +119,24 @@ def applicability(record, context):
             rs, cs = _slug(rec_domain), _slug(ctx_domain)
             if rs != cs and cs not in rs and rs not in cs:
                 return "DOMAIN_MISMATCH"
+        # Declared validity scopes: when the record declares the domains it
+        # is valid in (validity_domains, populated by the indexer), the
+        # context domain must be one of them — the gate actually reads the
+        # field (fix round 1, Codex Phase 2 review area 5 row 8).
+        scopes = record.get("validity_domains") or []
+        if scopes:
+            cs = _slug(ctx_domain)
+            ok = False
+            for s in scopes:
+                if s == "GLOBAL":
+                    ok = True
+                    break
+                ss = _slug(s)
+                if ss == cs or cs in ss or ss in cs:
+                    ok = True
+                    break
+            if not ok:
+                return "DOMAIN_MISMATCH"
     envs = record.get("validity_environments") or []
     if envs:
         if not context.get("environment"):
@@ -121,7 +152,7 @@ def applicability(record, context):
     return None
 
 
-def gate(record, context, source_freshness):
+def gate(record, context, source_freshness, waive_state=False):
     """Apply the KR gate order to one record (relevance and budget are
     applied by the caller, as in KR's compile loop).
 
@@ -129,12 +160,18 @@ def gate(record, context, source_freshness):
     context: {project_id, domain, environment, release}
     source_freshness: "FRESH" | "STALE" | "INVALID_FRESHNESS" for the
         record's source, from the query layer's STALE gate.
+    waive_state: skip ONLY stage 1 (state). This is the whole content of
+        the documented query opt-ins (--include-unadmitted, --history):
+        they waive the state reason they name and nothing else — stages
+        2-4 still run (fix round 1, Codex Phase 2 review blocker 2).
 
     Returns None when the record passes, else the KR exclusion reason.
     """
     # 1. state
     state = kr_state(record)
-    if state != "ACTIVE":
+    if state is None:
+        return "STATE_UNKNOWN"
+    if state != "ACTIVE" and not waive_state:
         return f"STATE_{state}"
     # 2. project/domain validity
     reason = applicability(record, context)
