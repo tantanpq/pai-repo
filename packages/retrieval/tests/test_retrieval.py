@@ -755,7 +755,17 @@ class TestFixRound2EvalRunner(unittest.TestCase):
         canonical = "/home/hatch/workspace/some-domain/STATUS.md"
         if os.path.exists(canonical):
             self.skipTest("canonical fixture path unexpectedly exists")
-        self.assertEqual(re_.resolve_old_path(canonical, mirror), target)
+        # Separator-neutral comparison (fix round 3): resolve_old_path
+        # re-roots the canonical string's post-/workspace/ tail verbatim,
+        # so on Windows its result mixes separators
+        # (mirror\some-domain/STATUS.md) while the os.path.join-built
+        # expectation is fully OS-native — Codex re-review 2, P0. The
+        # function's behavior is correct (his probe P2); only the string
+        # form differs per-OS. normpath folds both sides to the host
+        # separator, so this still fails on a wrong root or a dropped
+        # relative tail, identically on POSIX and Windows.
+        self.assertEqual(os.path.normpath(re_.resolve_old_path(canonical, mirror)),
+                         os.path.normpath(target))
         self.assertEqual(re_.unresolved_files([canonical], mirror), [])
         self.assertEqual(
             re_.old_path_tokens([canonical], mirror),
