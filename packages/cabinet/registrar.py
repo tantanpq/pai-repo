@@ -31,6 +31,9 @@ CLI:
   registrar.py project --registry PATH [--out-dir DIR] [--labels FILE]
                        [--generated-at ISO]
   registrar.py recover --registry PATH
+  registrar.py forget-member --registry PATH --expected-head HEX
+                       --system SYS --id MEMBER --actor ACTOR
+                       --evidence DIGEST-BOUND [--at ISO]
 """
 import argparse
 import hashlib
@@ -113,10 +116,17 @@ def _pairs_no_dupes(pairs):
 def parse_registry_bytes(data):
     """Strict §4 byte parse. Returns (line_bytes, events) with line_bytes
     excluding LF terminators. Refuses: CR bytes, invalid UTF-8, invalid
-    JSON, duplicate keys, non-object lines. A defect confined to the
-    final line — including a missing LF terminator — is a PartialTailError
-    (the fold must refuse until the tail is removed); a defect in any
-    earlier line is a hard RegistryError."""
+    JSON, duplicate keys, non-object lines.
+
+    Partial tail vs hard corruption (fix round 1, findings B1): ONLY a
+    genuinely incomplete final line — one with NO LF terminator — is a
+    PartialTailError (a crash interrupted that append; its content,
+    complete or not, was never terminated and never acknowledged). A
+    defect on an LF-TERMINATED line, final or interior, is a hard
+    RegistryError at every position: a complete MINT terminated by CRLF,
+    a duplicate JSON key, or invalid JSON behind an LF is a complete
+    forbidden representation, not crash debris, and crash-tail recovery
+    must never truncate it away."""
     if data == b"":
         return [], []
     ends_lf = data.endswith(b"\n")
@@ -147,8 +157,6 @@ def parse_registry_bytes(data):
                     if not isinstance(ev, dict):
                         err = "line is not a JSON object"
         if err is not None:
-            if is_last:
-                raise PartialTailError(f"line {i + 1}: {err} (partial tail)")
             raise RegistryError(f"line {i + 1}: {err}")
         lines.append(lb)
         events.append(ev)
@@ -582,12 +590,91 @@ def project(registry_path, out_dir=None, labels=None, generated_at=None):
                                       for c in state["cabinets"].values())}
 
 
+# ----------------------------------------------------------------- forget
+
+def forget_member(registry_path, system, member_id, expected_head,
+                  actor, evidence, at=None):
+    """§6 same-operation purge, registry side (fix round 1, finding C2).
+
+    Appends a `forget-consequence` UNLINK for EVERY active membership of
+    the member (system, member_id) — each targeting its LINK by registry
+    line, carrying the caller's digest-bound evidence (the forget
+    decision) — then rebuilds the projections from the new accepted fold
+    in the same operation, so the member's memberships disappear from
+    the fold, PROJECTION.json, and INDEX.md together. Registry history
+    itself is append-only and tombstone-grade by construction (§6
+    history rule): the LINK/UNLINK lines that remain carry only the
+    closed structural inventory — (system, ID), kind, codes, digests —
+    never member content or labels, so nothing beyond a tombstone
+    resurfaces from them. A member with no active memberships appends
+    nothing (any previously reversed links stay reversed) and the
+    projections are still rebuilt. Returns a summary dict."""
+    lines, events = read_registry(registry_path)
+    verify_chain(lines, events)
+    state = fold_events(events)
+    at = at or now_iso()
+    candidates = []
+    for cab in sorted(state["cabinets"], key=lambda c: int(c[4:])):
+        for m in state["cabinets"][cab]["members"]:
+            if m["system"] == system and m["id"] == member_id:
+                candidates.append({
+                    "type": "UNLINK", "cabinet_id": cab, "at": at,
+                    "actor": actor,
+                    "member": {"system": m["system"], "id": m["id"],
+                               "kind": m["kind"]},
+                    "relation": m["relation"], "evidence": evidence,
+                    "reason": "forget-consequence",
+                    "corrects": str(m["registry_line"])})
+    appended = 0
+    head = head_of(lines)
+    if candidates:
+        out = append_events(registry_path, candidates, expected_head)
+        appended = out["appended"]
+        head = out["head"]
+    proj = project(registry_path)
+    return {"member": f"{system}:{member_id}", "unlinked": appended,
+            "head": head, "projection": proj}
+
+
 # ---------------------------------------------------------------- recover
+
+def _write_recovery_record(index_path, record):
+    """Append the removal record to INDEX.md's "Recovery records"
+    section, creating INDEX.md (governed header + the section) when it
+    does not exist. Raises OSError when the record cannot be durably
+    written — the caller treats that as fatal BEFORE any mutation
+    (fix round 1, finding B2: a recovery that truncates without a
+    durable record is a silent history edit)."""
+    if os.path.exists(index_path):
+        with open(index_path, encoding="utf-8") as f:
+            text = f.read()
+        if "## Recovery records" in text:
+            text = text.rstrip() + "\n" + record + "\n"
+        else:
+            text = text.rstrip() + "\n\n## Recovery records\n\n" \
+                + record + "\n"
+    else:
+        text = ("# Cabinet Registrar — Index\n\n"
+                "Created by crash-tail recovery: this file was absent "
+                "when a partial\ntail was removed, and §4 requires the "
+                "removal to be recorded durably.\nA later `project` run "
+                "regenerates the full index from the accepted fold and\n"
+                "carries this section forward verbatim.\n\n"
+                "## Recovery records\n\n" + record + "\n")
+    with open(index_path, "w", encoding="utf-8") as f:
+        f.write(text)
+        f.flush()
+        os.fsync(f.fileno())
+
 
 def recover_tail(registry_path, index_path=None):
     """Remove a partial tail (§4) and return the removal record. The
     prefix must parse, chain-verify and fold cleanly before anything is
-    truncated; interior corruption is never 'recovered' this way."""
+    truncated; interior corruption is never 'recovered' this way. The
+    removal record is written to INDEX.md BEFORE the registry is
+    truncated, and recovery FAILS — registry untouched — when no
+    durable record can be written (missing index_path, unwritable
+    index): there is no silent truncate (finding B2)."""
     with open(registry_path, "rb") as f:
         data = f.read()
     try:
@@ -596,13 +683,10 @@ def recover_tail(registry_path, index_path=None):
                 "head": head_of(lines), "lines": len(lines)}
     except PartialTailError:
         pass
-    # The recoverable prefix drops exactly the final line (LF-terminated
-    # or not): a crash interrupts one append. If the remainder still does
-    # not parse, the damage is not a tail artifact and is never truncated.
-    if data.endswith(b"\n"):
-        prev_lf = data.rfind(b"\n", 0, len(data) - 1)
-    else:
-        prev_lf = data.rfind(b"\n")
+    # The recoverable prefix drops exactly the final, unterminated line:
+    # a crash interrupts one append. If the remainder still does not
+    # parse, the damage is not a tail artifact and is never truncated.
+    prev_lf = data.rfind(b"\n")
     prefix = data[:prev_lf + 1] if prev_lf >= 0 else b""
     try:
         lines, events = parse_registry_bytes(prefix)
@@ -612,21 +696,24 @@ def recover_tail(registry_path, index_path=None):
     verify_chain(lines, events)
     fold_events(events)
     removed = len(data) - len(prefix)
-    with open(registry_path, "r+b") as f:
-        f.truncate(len(prefix))
     record = (f"- Recovery {now_iso()}: removed {removed} trailing "
               f"partial byte(s) (crash artifact, no complete event); "
               f"accepted history is {len(lines)} lines, "
               f"head `{head_of(lines)}`.")
-    if index_path and os.path.exists(index_path):
-        with open(index_path, encoding="utf-8") as f:
-            text = f.read()
-        if "## Recovery records" in text:
-            text = text.rstrip() + "\n" + record + "\n"
-        else:
-            text = text.rstrip() + "\n\n## Recovery records\n\n" + record + "\n"
-        with open(index_path, "w", encoding="utf-8") as f:
-            f.write(text)
+    if not index_path:
+        raise RegistryError(
+            "recovery requires an INDEX.md path: the §4 removal record "
+            "must be durable, so nothing was truncated")
+    try:
+        _write_recovery_record(index_path, record)
+    except OSError as e:
+        raise RegistryError(
+            f"cannot write the §4 removal record to {index_path}: {e}; "
+            f"recovery aborted before any truncation")
+    with open(registry_path, "r+b") as f:
+        f.truncate(len(prefix))
+        f.flush()
+        os.fsync(f.fileno())
     return {"removed_bytes": removed, "record": record,
             "head": head_of(lines), "lines": len(lines)}
 
@@ -647,6 +734,14 @@ def main():
     p.add_argument("--registry", required=True)
     p.add_argument("--expected-head", required=True)
     p.add_argument("--events", required=True)
+    p = sub.add_parser("forget-member")
+    p.add_argument("--registry", required=True)
+    p.add_argument("--expected-head", required=True)
+    p.add_argument("--system", required=True)
+    p.add_argument("--id", required=True)
+    p.add_argument("--actor", required=True)
+    p.add_argument("--evidence", required=True)
+    p.add_argument("--at")
     args = ap.parse_args()
     try:
         if args.cmd == "verify":
@@ -675,6 +770,10 @@ def main():
             index = os.path.join(os.path.dirname(
                 os.path.abspath(args.registry)), "INDEX.md")
             out = recover_tail(args.registry, index_path=index)
+        elif args.cmd == "forget-member":
+            out = forget_member(args.registry, args.system, args.id,
+                                args.expected_head, args.actor,
+                                args.evidence, at=args.at)
     except RegistryError as e:
         print(json.dumps({"ok": False, "error": f"{type(e).__name__}: {e}"}))
         return 2

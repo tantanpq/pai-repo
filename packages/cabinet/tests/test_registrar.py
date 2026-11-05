@@ -209,21 +209,43 @@ class TestByteRules(ScratchCase):
             f.write(partial)
         with self.assertRaises(R.PartialTailError):
             R.read_registry(self.reg)
-        res = R.recover_tail(self.reg)
+        damaged = self.bytes_now()
+        # B2: recovery without an INDEX path fails BEFORE any mutation —
+        # a removal record must be durable, never stdout-only.
+        with self.assertRaises(R.RegistryError):
+            R.recover_tail(self.reg)
+        self.assertEqual(self.bytes_now(), damaged)
+        # With an index path (INDEX.md absent -> created by recovery):
+        index = os.path.join(self.tmp.name, "INDEX.md")
+        res = R.recover_tail(self.reg, index_path=index)
         self.assertEqual(res["removed_bytes"], len(partial))
         self.assertEqual(res["head"], out["head"])
         self.assertEqual(self.bytes_now(), good)
+        with open(index, encoding="utf-8") as f:
+            text = f.read()
+        self.assertIn("## Recovery records", text)
+        self.assertIn(f"removed {len(partial)} trailing", text)
         state = R.fold_events(R.read_registry(self.reg)[1])
         self.assertEqual(len(state["cabinets"]["cab-0001"]["members"]), 2)
 
     def test_invalid_json_final_line_lf_terminated_refused(self):
+        # AMENDED in fix round 1 (finding B1): an LF-terminated final
+        # line is COMPLETE by construction — invalid JSON behind an LF
+        # is hard corruption, never crash debris, and recovery must not
+        # truncate it. (The pre-fix suite treated it as a partial tail;
+        # that expectation encoded the defect.)
         self.genesis()
+        good = self.bytes_now()
         with open(self.reg, "ab") as f:
             f.write(b'{"type": "LINK", nope\n')
-        with self.assertRaises(R.PartialTailError):
+        with self.assertRaises(R.RegistryError) as cm:
             R.read_registry(self.reg)
-        res = R.recover_tail(self.reg)
-        self.assertGreater(res["removed_bytes"], 0)
+        self.assertNotIsInstance(cm.exception, R.PartialTailError)
+        index = os.path.join(self.tmp.name, "INDEX.md")
+        with self.assertRaises(R.RegistryError):
+            R.recover_tail(self.reg, index_path=index)
+        self.assertEqual(self.bytes_now(),
+                         good + b'{"type": "LINK", nope\n')
 
     def test_unterminated_complete_line_is_partial_tail(self):
         self.genesis()
@@ -254,6 +276,145 @@ class TestByteRules(ScratchCase):
         events[1]["prev_hash"] = "0" * 64
         with self.assertRaises(R.ValidationError):
             R.verify_chain(lines, events)
+
+
+class TestFinalLineHardErrors(ScratchCase):
+    """Finding B1: hard §4 errors on the FINAL line are corruption, not
+    crash debris — never PartialTailError, never truncated by recovery."""
+
+    def _append_raw(self, data):
+        with open(self.reg, "ab") as f:
+            f.write(data)
+
+    def test_complete_mint_crlf_terminated_survives_recovery_attempt(self):
+        out = self.genesis()
+        ev = mint("cab-0002")
+        ev["prev_hash"] = out["head"]
+        line = R.serialize_event(ev).encode("utf-8") + b"\r\n"  # complete, CRLF
+        self._append_raw(line)
+        damaged = self.bytes_now()
+        with self.assertRaises(R.RegistryError) as cm:
+            R.read_registry(self.reg)
+        self.assertNotIsInstance(cm.exception, R.PartialTailError)
+        index = os.path.join(self.tmp.name, "INDEX.md")
+        with self.assertRaises(R.RegistryError):
+            R.recover_tail(self.reg, index_path=index)
+        self.assertEqual(self.bytes_now(), damaged)  # nothing removed
+
+    def test_duplicate_key_final_line_errors_without_mutation(self):
+        self.genesis()
+        dup = b'{"type": "MINT", "type": "MINT", "cabinet_id": "cab-0002"}\n'
+        self._append_raw(dup)
+        damaged = self.bytes_now()
+        with self.assertRaises(R.RegistryError) as cm:
+            R.read_registry(self.reg)
+        self.assertNotIsInstance(cm.exception, R.PartialTailError)
+        index = os.path.join(self.tmp.name, "INDEX.md")
+        with self.assertRaises(R.RegistryError):
+            R.recover_tail(self.reg, index_path=index)
+        self.assertEqual(self.bytes_now(), damaged)
+
+    def test_recovery_record_failure_fails_before_mutation(self):
+        # B2: index path exists as a DIRECTORY -> the removal record
+        # cannot be written -> recovery aborts, registry untouched.
+        self.genesis()
+        partial = b'{"type": "LINK", "cab'
+        self._append_raw(partial)
+        damaged = self.bytes_now()
+        index_dir = os.path.join(self.tmp.name, "INDEX.md")
+        os.mkdir(index_dir)
+        with self.assertRaises(R.RegistryError):
+            R.recover_tail(self.reg, index_path=index_dir)
+        self.assertEqual(self.bytes_now(), damaged)
+
+    def test_unterminated_invalid_json_is_still_a_partial_tail(self):
+        out = self.genesis()
+        good = self.bytes_now()
+        self._append_raw(b'{"type": "LINK", nope')  # no LF terminator
+        with self.assertRaises(R.PartialTailError):
+            R.read_registry(self.reg)
+        index = os.path.join(self.tmp.name, "INDEX.md")
+        res = R.recover_tail(self.reg, index_path=index)
+        self.assertGreater(res["removed_bytes"], 0)
+        self.assertEqual(res["head"], out["head"])
+        self.assertEqual(self.bytes_now(), good)
+
+
+class TestForgetMember(ScratchCase):
+    """Finding C2: forget purges the member's derived memberships from
+    the fold and both projections in the same operation."""
+
+    def _setup(self):
+        out = self.genesis()  # cab-0001: C-0001 primary (2), C-0002 primary (3)
+        out = R.append_events(self.reg, [mint()], out["head"])  # cab-0002 (4)
+        out = R.append_events(self.reg, [
+            link("cab-0002", None, "C-0001", relation="secondary",
+                 reason="secondary-relation")], out["head"])  # line 5
+        # A previously reversed link for C-0002 (secondary, then UNLINK):
+        out = R.append_events(self.reg, [
+            link("cab-0002", None, "C-0002", relation="secondary",
+                 reason="secondary-relation")], out["head"])  # line 6
+        out = R.append_events(self.reg, [
+            unlink("cab-0002", 6, cid="C-0002", relation="secondary")],
+            out["head"])  # line 7
+        return out
+
+    def test_forget_purges_fold_projection_and_index(self):
+        out = self._setup()
+        res = R.forget_member(self.reg, "claim-register", "C-0001",
+                              out["head"], ACTOR, EV, at=AT)
+        self.assertEqual(res["unlinked"], 2)  # primary + secondary
+        lines, events = R.read_registry(self.reg)
+        state = R.fold_events(events)
+        self.assertIsNone(state["members"]["claim-register:C-0001"]["primary"])
+        self.assertEqual(state["members"]["claim-register:C-0001"]["secondary"],
+                         [])
+        # C-0002 untouched (its primary survives; its reversed secondary
+        # stays reversed — forget appended nothing for it):
+        self.assertEqual(
+            state["members"]["claim-register:C-0002"]["primary"]["cabinet_id"],
+            "cab-0001")
+        forgets = [e for e in events
+                   if e["type"] == "UNLINK"
+                   and e["reason"] == "forget-consequence"]
+        self.assertEqual(len(forgets), 2)
+        with open(os.path.join(self.tmp.name, "PROJECTION.json"), "rb") as f:
+            proj = json.loads(f.read().decode("utf-8"))
+        self.assertNotIn("claim-register:C-0001", proj["members"])
+        with open(os.path.join(self.tmp.name, "INDEX.md"),
+                  encoding="utf-8") as f:
+            self.assertNotIn("C-0001", f.read())
+        # History is tombstone-grade: the member's (system, ID) pair and
+        # kind remain in history lines (permitted tombstone content),
+        # but no event carries anything beyond the closed inventory.
+        for e in events:
+            self.assertLessEqual(
+                set(e), {"type", "cabinet_id", "at", "actor", "member",
+                         "relation", "evidence", "corrects", "reason",
+                         "prev_hash"})
+        # Rebuild after purge shows no residue:
+        R.project(self.reg, generated_at=AT)
+        with open(os.path.join(self.tmp.name, "PROJECTION.json"), "rb") as f:
+            proj2 = json.loads(f.read().decode("utf-8"))
+        self.assertNotIn("claim-register:C-0001", proj2["members"])
+
+    def test_forget_member_with_only_reversed_links_appends_nothing(self):
+        out = self.genesis()
+        out = R.append_events(self.reg, [unlink("cab-0001", 3, cid="C-0002")],
+                              out["head"])  # C-0002 fully reversed already
+        before = self.bytes_now()
+        res = R.forget_member(self.reg, "claim-register", "C-0002",
+                              out["head"], ACTOR, EV, at=AT)
+        self.assertEqual(res["unlinked"], 0)
+        self.assertEqual(self.bytes_now(), before)
+
+    def test_forget_stale_head_rejected(self):
+        out = self._setup()
+        before = self.bytes_now()
+        with self.assertRaises(R.StaleHeadError):
+            R.forget_member(self.reg, "claim-register", "C-0001",
+                            R.GENESIS_HASH, ACTOR, EV, at=AT)
+        self.assertEqual(self.bytes_now(), before)
 
 
 class TestIndexRegeneration(ScratchCase):
