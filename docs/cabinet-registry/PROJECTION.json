@@ -368,12 +368,15 @@
      "system": "claim-register"
     }
    ]
+  },
+  "cab-0018": {
+   "members": []
   }
  },
  "generated_from": {
-  "generated_at": "2026-11-05T15:29:24-08:00",
-  "registry_head_sha256": "fb81de74af6263e17041dda124b95973627430d123c36a78e84e4318cc2b0cf3",
-  "registry_lines": 64
+  "generated_at": "2026-11-05T15:32:57-08:00",
+  "registry_head_sha256": "c708a32edf4d949b6404a45a18034a2c927f1eb731a91236840cbc1d86e21903",
+  "registry_lines": 71
  },
  "members": {
   "claim-register:C-0027": {

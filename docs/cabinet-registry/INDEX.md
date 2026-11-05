@@ -6,7 +6,7 @@ only on this surface and in projections — never in registry history lines
 (spec §6 history rule). A record is always cited by its native
 (owning-system, ID) pair; a Cabinet ID names a work area only.
 
-- Accepted head: `fb81de74af6263e17041dda124b95973627430d123c36a78e84e4318cc2b0cf3` · 64 registry lines · projection rebuilt 2026-11-05T15:29:24-08:00 from the accepted fold
+- Accepted head: `c708a32edf4d949b6404a45a18034a2c927f1eb731a91236840cbc1d86e21903` · 71 registry lines · projection rebuilt 2026-11-05T15:32:57-08:00 from the accepted fold
 
 ## Cabinets
 
@@ -29,10 +29,11 @@ only on this surface and in projections — never in registry history lines
 | cab-0015 | claim-register-automation | vm-spine: sp-20261102-claim-register---slice-2-tu-dong-hoa--cl-2be477 — primary<br>claim-register: C-0175 — primary |
 | cab-0016 | drive-parked-archive | vm-spine: sp-20261102-drive-parked-archive---parked-by-design--f16b25 — primary<br>claim-register: C-0192 — primary<br>claim-register: C-0194 — primary |
 | cab-0017 | orphan-briefs | vm-spine: sp-20261102-orphan-briefs---101-brief-chua-co-result-dc93de — primary<br>claim-register: C-0140 — primary |
+| cab-0018 | — |  |
 
 ## Coverage
 
-- Cabinets minted: 17 (cab-0001…cab-0017).
+- Cabinets minted: 18 (cab-0001…cab-0018).
 - Active memberships: 43 — 42 primary, 1 secondary. Per system: claim-register 25, vm-spine 18.
 
 ## Pending exhibits (not stamped — no Cabinet ID)
