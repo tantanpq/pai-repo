@@ -6,11 +6,7 @@ only on this surface and in projections — never in registry history lines
 (spec §6 history rule). A record is always cited by its native
 (owning-system, ID) pair; a Cabinet ID names a work area only.
 
-- Accepted head: `24d0b715fa4e61d85aaa4dfa49ae25e56e95267270a1805db3d5789cab4fd716` · 58 registry lines · Step 1 pilot,
-  appended 2026-11-05T12:20:55-08:00 by `pai-repo-phase3-impl-step1` against the empty (genesis) head.
-- Claim-ledger projection (spec §5.1): not yet admitted — the register's
-  admission path is not qualified for LINK/UNLINK events; see the Step 1
-  report (`pai-repo-program/phase3/STEP1_REPORT.md`).
+- Accepted head: `fb81de74af6263e17041dda124b95973627430d123c36a78e84e4318cc2b0cf3` · 64 registry lines · projection rebuilt 2026-11-05T15:29:24-08:00 from the accepted fold
 
 ## Cabinets
 
@@ -28,10 +24,16 @@ only on this surface and in projections — never in registry history lines
 | cab-0010 | portable-continuity-r1 | vm-spine: sp-20261102-portable-continuity-r1-promotion---watch-104321 — primary<br>claim-register: C-0107 — primary |
 | cab-0011 | moats-completion | vm-spine: sp-20261102-moats-done-basic---no-luc-con-lai-theo-r-78e818 — primary<br>claim-register: C-0122 — primary |
 | cab-0012 | negative-space-surplus | vm-spine: sp-20261102-negative-space---surplus-s1-s15-cho-quye-5b417e — primary<br>claim-register: C-0136 — primary<br>claim-register: C-0168 — primary<br>claim-register: C-0169 — primary<br>claim-register: C-0170 — primary |
-| cab-0013 | unverified-systems | vm-spine: sp-20261102-unverified-systems-u1-u20---cho-kiem-chu-57ea63 — primary<br>vm-spine: sp-20261102-orphan-briefs---101-brief-chua-co-result-dc93de — primary<br>claim-register: C-0139 — primary<br>claim-register: C-0140 — primary |
+| cab-0013 | unverified-systems | vm-spine: sp-20261102-unverified-systems-u1-u20---cho-kiem-chu-57ea63 — primary<br>claim-register: C-0139 — primary<br>vm-spine: sp-20261102-orphan-briefs---101-brief-chua-co-result-dc93de — secondary |
 | cab-0014 | intent-excavation | vm-spine: sp-20261102-intent-excavation-mechanism--claim-c-017-ebc799 — primary<br>claim-register: C-0174 — primary |
 | cab-0015 | claim-register-automation | vm-spine: sp-20261102-claim-register---slice-2-tu-dong-hoa--cl-2be477 — primary<br>claim-register: C-0175 — primary |
 | cab-0016 | drive-parked-archive | vm-spine: sp-20261102-drive-parked-archive---parked-by-design--f16b25 — primary<br>claim-register: C-0192 — primary<br>claim-register: C-0194 — primary |
+| cab-0017 | orphan-briefs | vm-spine: sp-20261102-orphan-briefs---101-brief-chua-co-result-dc93de — primary<br>claim-register: C-0140 — primary |
+
+## Coverage
+
+- Cabinets minted: 17 (cab-0001…cab-0017).
+- Active memberships: 43 — 42 primary, 1 secondary. Per system: claim-register 25, vm-spine 18.
 
 ## Pending exhibits (not stamped — no Cabinet ID)
 
@@ -44,12 +46,3 @@ only on this surface and in projections — never in registry history lines
   crosswalk appendix rows 49 and 43; backfill plan Step 1 ambiguity flag.
   Suspicion is not evidence: no LINK, no secondary relation, and no merge is
   recorded for this pair until a human decides on evidence.
-
-## Coverage (Step 1)
-
-- Cabinets minted: 16 (cab-0001…cab-0016).
-- Primary memberships: 42 — 17 vm-spine planning tasks + 25 claim-register
-  epistemic claims. Secondary memberships: 0.
-- Pending exhibits: 1 pair relation (above). Step 1 orphans: none — every
-  Step 1 task and claim in the plan table carries a primary Cabinet ID.
-

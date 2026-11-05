@@ -275,13 +275,6 @@
      "system": "vm-spine"
     },
     {
-     "id": "sp-20261102-orphan-briefs---101-brief-chua-co-result-dc93de",
-     "kind": "planning-task",
-     "registry_line": 46,
-     "relation": "primary",
-     "system": "vm-spine"
-    },
-    {
      "id": "C-0139",
      "kind": "epistemic-claim",
      "registry_line": 47,
@@ -289,11 +282,11 @@
      "system": "claim-register"
     },
     {
-     "id": "C-0140",
-     "kind": "epistemic-claim",
-     "registry_line": 48,
-     "relation": "primary",
-     "system": "claim-register"
+     "id": "sp-20261102-orphan-briefs---101-brief-chua-co-result-dc93de",
+     "kind": "planning-task",
+     "registry_line": 64,
+     "relation": "secondary",
+     "system": "vm-spine"
     }
    ]
   },
@@ -357,12 +350,30 @@
      "system": "claim-register"
     }
    ]
+  },
+  "cab-0017": {
+   "members": [
+    {
+     "id": "sp-20261102-orphan-briefs---101-brief-chua-co-result-dc93de",
+     "kind": "planning-task",
+     "registry_line": 62,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "C-0140",
+     "kind": "epistemic-claim",
+     "registry_line": 63,
+     "relation": "primary",
+     "system": "claim-register"
+    }
+   ]
   }
  },
  "generated_from": {
-  "generated_at": "2026-11-05T12:20:55-08:00",
-  "registry_head_sha256": "24d0b715fa4e61d85aaa4dfa49ae25e56e95267270a1805db3d5789cab4fd716",
-  "registry_lines": 58
+  "generated_at": "2026-11-05T15:29:24-08:00",
+  "registry_head_sha256": "fb81de74af6263e17041dda124b95973627430d123c36a78e84e4318cc2b0cf3",
+  "registry_lines": 64
  },
  "members": {
   "claim-register:C-0027": {
@@ -446,8 +457,8 @@
    "relation": "primary"
   },
   "claim-register:C-0140": {
-   "cabinet_id": "cab-0013",
-   "registry_line": 48,
+   "cabinet_id": "cab-0017",
+   "registry_line": 63,
    "relation": "primary"
   },
   "claim-register:C-0168": {
@@ -541,8 +552,15 @@
    "relation": "primary"
   },
   "vm-spine:sp-20261102-orphan-briefs---101-brief-chua-co-result-dc93de": {
-   "cabinet_id": "cab-0013",
-   "registry_line": 46,
+   "also": [
+    {
+     "cabinet_id": "cab-0013",
+     "registry_line": 64,
+     "relation": "secondary"
+    }
+   ],
+   "cabinet_id": "cab-0017",
+   "registry_line": 62,
    "relation": "primary"
   },
   "vm-spine:sp-20261102-pai-spine-kit-phase-a--claim-c-0080--gom-39b3b7": {
