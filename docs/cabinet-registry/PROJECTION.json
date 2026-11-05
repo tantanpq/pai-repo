@@ -371,12 +371,151 @@
   },
   "cab-0018": {
    "members": []
+  },
+  "cab-0019": {
+   "members": [
+    {
+     "id": "lesson-publish:cmm-lesson-17",
+     "kind": "work-unit",
+     "registry_line": 73,
+     "relation": "primary",
+     "system": "home-runloop"
+    },
+    {
+     "id": "lesson-publish:cmm-lesson-18",
+     "kind": "work-unit",
+     "registry_line": 74,
+     "relation": "primary",
+     "system": "home-runloop"
+    },
+    {
+     "id": "lesson-publish:cmm-lesson-19",
+     "kind": "work-unit",
+     "registry_line": 75,
+     "relation": "primary",
+     "system": "home-runloop"
+    },
+    {
+     "id": "lesson-publish:cmm-lesson-20",
+     "kind": "work-unit",
+     "registry_line": 76,
+     "relation": "primary",
+     "system": "home-runloop"
+    },
+    {
+     "id": "lesson-publish:cmm-lesson-21",
+     "kind": "work-unit",
+     "registry_line": 77,
+     "relation": "primary",
+     "system": "home-runloop"
+    },
+    {
+     "id": "lesson-publish:cmm-lesson-22",
+     "kind": "work-unit",
+     "registry_line": 78,
+     "relation": "primary",
+     "system": "home-runloop"
+    },
+    {
+     "id": "lesson-publish:cmm-lesson-23",
+     "kind": "work-unit",
+     "registry_line": 79,
+     "relation": "primary",
+     "system": "home-runloop"
+    },
+    {
+     "id": "lesson-publish-shadow:cmm-lesson-17",
+     "kind": "work-unit",
+     "registry_line": 80,
+     "relation": "primary",
+     "system": "home-runloop"
+    }
+   ]
+  },
+  "cab-0020": {
+   "members": [
+    {
+     "id": "authority-gate-test:mf-atest-f03b",
+     "kind": "work-unit",
+     "registry_line": 82,
+     "relation": "primary",
+     "system": "home-runloop"
+    },
+    {
+     "id": "authority-gate-test:mf-atest-f03c",
+     "kind": "work-unit",
+     "registry_line": 83,
+     "relation": "primary",
+     "system": "home-runloop"
+    },
+    {
+     "id": "authority-gate-test:mf-atest-f03d",
+     "kind": "work-unit",
+     "registry_line": 84,
+     "relation": "primary",
+     "system": "home-runloop"
+    }
+   ]
+  },
+  "cab-0021": {
+   "members": [
+    {
+     "id": "receipt-withhold-test:mf-atest-f01t3a",
+     "kind": "work-unit",
+     "registry_line": 86,
+     "relation": "primary",
+     "system": "home-runloop"
+    }
+   ]
+  },
+  "cab-0022": {
+   "members": [
+    {
+     "id": "simple_body_r1:PAI_AUTONOMY_WAVE_R1_QCHECK_WORK_R0",
+     "kind": "work-unit",
+     "registry_line": 88,
+     "relation": "primary",
+     "system": "home-runloop"
+    },
+    {
+     "id": "claim_38cd9a9a-5ba4-402a-aab0-59312f1f3c3b",
+     "kind": "execution-claim",
+     "registry_line": 89,
+     "relation": "primary",
+     "system": "claim-service"
+    },
+    {
+     "id": "claim_422e685a-54c7-4864-92ac-a9728dd84eaf",
+     "kind": "execution-claim",
+     "registry_line": 90,
+     "relation": "primary",
+     "system": "claim-service"
+    },
+    {
+     "id": "claim_42530e14-b016-41d8-bd71-2da289e04692",
+     "kind": "execution-claim",
+     "registry_line": 91,
+     "relation": "primary",
+     "system": "claim-service"
+    }
+   ]
+  },
+  "cab-0023": {
+   "members": [
+    {
+     "id": "organ-health-probe",
+     "kind": "work-unit",
+     "registry_line": 93,
+     "relation": "primary",
+     "system": "home-runloop"
+    }
+   ]
   }
  },
  "generated_from": {
-  "generated_at": "2026-11-05T15:32:57-08:00",
-  "registry_head_sha256": "c708a32edf4d949b6404a45a18034a2c927f1eb731a91236840cbc1d86e21903",
-  "registry_lines": 71
+  "generated_at": "2026-11-05T15:43:42-08:00",
+  "registry_head_sha256": "aa12dca6771821f7669e0473218b52a96c80c586f397c168e65046d3702b57a4",
+  "registry_lines": 93
  },
  "members": {
   "claim-register:C-0027": {
@@ -502,6 +641,91 @@
   "claim-register:C-0194": {
    "cabinet_id": "cab-0016",
    "registry_line": 58,
+   "relation": "primary"
+  },
+  "claim-service:claim_38cd9a9a-5ba4-402a-aab0-59312f1f3c3b": {
+   "cabinet_id": "cab-0022",
+   "registry_line": 89,
+   "relation": "primary"
+  },
+  "claim-service:claim_422e685a-54c7-4864-92ac-a9728dd84eaf": {
+   "cabinet_id": "cab-0022",
+   "registry_line": 90,
+   "relation": "primary"
+  },
+  "claim-service:claim_42530e14-b016-41d8-bd71-2da289e04692": {
+   "cabinet_id": "cab-0022",
+   "registry_line": 91,
+   "relation": "primary"
+  },
+  "home-runloop:authority-gate-test:mf-atest-f03b": {
+   "cabinet_id": "cab-0020",
+   "registry_line": 82,
+   "relation": "primary"
+  },
+  "home-runloop:authority-gate-test:mf-atest-f03c": {
+   "cabinet_id": "cab-0020",
+   "registry_line": 83,
+   "relation": "primary"
+  },
+  "home-runloop:authority-gate-test:mf-atest-f03d": {
+   "cabinet_id": "cab-0020",
+   "registry_line": 84,
+   "relation": "primary"
+  },
+  "home-runloop:lesson-publish-shadow:cmm-lesson-17": {
+   "cabinet_id": "cab-0019",
+   "registry_line": 80,
+   "relation": "primary"
+  },
+  "home-runloop:lesson-publish:cmm-lesson-17": {
+   "cabinet_id": "cab-0019",
+   "registry_line": 73,
+   "relation": "primary"
+  },
+  "home-runloop:lesson-publish:cmm-lesson-18": {
+   "cabinet_id": "cab-0019",
+   "registry_line": 74,
+   "relation": "primary"
+  },
+  "home-runloop:lesson-publish:cmm-lesson-19": {
+   "cabinet_id": "cab-0019",
+   "registry_line": 75,
+   "relation": "primary"
+  },
+  "home-runloop:lesson-publish:cmm-lesson-20": {
+   "cabinet_id": "cab-0019",
+   "registry_line": 76,
+   "relation": "primary"
+  },
+  "home-runloop:lesson-publish:cmm-lesson-21": {
+   "cabinet_id": "cab-0019",
+   "registry_line": 77,
+   "relation": "primary"
+  },
+  "home-runloop:lesson-publish:cmm-lesson-22": {
+   "cabinet_id": "cab-0019",
+   "registry_line": 78,
+   "relation": "primary"
+  },
+  "home-runloop:lesson-publish:cmm-lesson-23": {
+   "cabinet_id": "cab-0019",
+   "registry_line": 79,
+   "relation": "primary"
+  },
+  "home-runloop:organ-health-probe": {
+   "cabinet_id": "cab-0023",
+   "registry_line": 93,
+   "relation": "primary"
+  },
+  "home-runloop:receipt-withhold-test:mf-atest-f01t3a": {
+   "cabinet_id": "cab-0021",
+   "registry_line": 86,
+   "relation": "primary"
+  },
+  "home-runloop:simple_body_r1:PAI_AUTONOMY_WAVE_R1_QCHECK_WORK_R0": {
+   "cabinet_id": "cab-0022",
+   "registry_line": 88,
    "relation": "primary"
   },
   "vm-spine:sp-20261102-claim-register---slice-2-tu-dong-hoa--cl-2be477": {

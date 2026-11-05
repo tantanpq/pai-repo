@@ -6,7 +6,7 @@ only on this surface and in projections — never in registry history lines
 (spec §6 history rule). A record is always cited by its native
 (owning-system, ID) pair; a Cabinet ID names a work area only.
 
-- Accepted head: `c708a32edf4d949b6404a45a18034a2c927f1eb731a91236840cbc1d86e21903` · 71 registry lines · projection rebuilt 2026-11-05T15:32:57-08:00 from the accepted fold
+- Accepted head: `aa12dca6771821f7669e0473218b52a96c80c586f397c168e65046d3702b57a4` · 93 registry lines · projection rebuilt 2026-11-05T15:43:42-08:00 from the accepted fold
 
 ## Cabinets
 
@@ -30,11 +30,16 @@ only on this surface and in projections — never in registry history lines
 | cab-0016 | drive-parked-archive | vm-spine: sp-20261102-drive-parked-archive---parked-by-design--f16b25 — primary<br>claim-register: C-0192 — primary<br>claim-register: C-0194 — primary |
 | cab-0017 | orphan-briefs | vm-spine: sp-20261102-orphan-briefs---101-brief-chua-co-result-dc93de — primary<br>claim-register: C-0140 — primary |
 | cab-0018 | — |  |
+| cab-0019 | lesson-publish | home-runloop: lesson-publish:cmm-lesson-17 — primary<br>home-runloop: lesson-publish:cmm-lesson-18 — primary<br>home-runloop: lesson-publish:cmm-lesson-19 — primary<br>home-runloop: lesson-publish:cmm-lesson-20 — primary<br>home-runloop: lesson-publish:cmm-lesson-21 — primary<br>home-runloop: lesson-publish:cmm-lesson-22 — primary<br>home-runloop: lesson-publish:cmm-lesson-23 — primary<br>home-runloop: lesson-publish-shadow:cmm-lesson-17 — primary |
+| cab-0020 | authority-gate-test | home-runloop: authority-gate-test:mf-atest-f03b — primary<br>home-runloop: authority-gate-test:mf-atest-f03c — primary<br>home-runloop: authority-gate-test:mf-atest-f03d — primary |
+| cab-0021 | receipt-withhold-test | home-runloop: receipt-withhold-test:mf-atest-f01t3a — primary |
+| cab-0022 | simple_body_r1 | home-runloop: simple_body_r1:PAI_AUTONOMY_WAVE_R1_QCHECK_WORK_R0 — primary<br>claim-service: claim_38cd9a9a-5ba4-402a-aab0-59312f1f3c3b — primary<br>claim-service: claim_422e685a-54c7-4864-92ac-a9728dd84eaf — primary<br>claim-service: claim_42530e14-b016-41d8-bd71-2da289e04692 — primary |
+| cab-0023 | organ-health-probe | home-runloop: organ-health-probe — primary |
 
 ## Coverage
 
-- Cabinets minted: 18 (cab-0001…cab-0018).
-- Active memberships: 43 — 42 primary, 1 secondary. Per system: claim-register 25, vm-spine 18.
+- Cabinets minted: 23 (cab-0001…cab-0023).
+- Active memberships: 60 — 59 primary, 1 secondary. Per system: claim-register 25, claim-service 3, home-runloop 14, vm-spine 18.
 
 ## Pending exhibits (not stamped — no Cabinet ID)
 
@@ -47,3 +52,21 @@ only on this surface and in projections — never in registry history lines
   crosswalk appendix rows 49 and 43; backfill plan Step 1 ambiguity flag.
   Suspicion is not evidence: no LINK, no secondary relation, and no merge is
   recorded for this pair until a human decides on evidence.
+
+- **Claim Service historical lifecycle-trace population** — 6,356 `claim_<uuid>` objects
+  recorded in HOME's retained lifecycle trace (`pai-run-loop.db` outbox,
+  PAI_LIVE_LIFECYCLE_TRACE_V1, 2026-07-26 → 2026-09-18), not stamped in backfill
+  Step 2: 5,462 of them bind to `simple_body_r1:*` work units, the rest to other
+  bodies' work areas (PAI-DEFECT-HUNT-*, PAI-IT-*, PAI-E2E-*, …). They are terminal
+  historical records of the pre-run-loop era with no counterpart in the current
+  run-loop claims census (2026-10-29 → 2026-11-05); the 2 still-active resident
+  holds from this population ARE stamped (cab-0022), and the simple_body_r1 family
+  relationship is recorded there. Gap class: no counterpart in the current
+  population / historical trace only. Evidence: `pai-repo-program/phase3/step2-evidence/HOME_CENSUS.json`.
+- **September simple_body_r1 work units named in the holds' evidence** —
+  `simple_body_r1:RESIDENT_TERMINAL_EVIDENCE_R2_REPAIR_R1` and
+  `simple_body_r1:SEED_SC3_CODEC_PREP_R1` exist only as lifecycle-trace records,
+  not as rows in the run loop's current claims/dispatches census; they are named
+  inside their claims' LINK evidence (cab-0022) and are not stamped as
+  home-runloop members. Gap class: identifier absent from the owning store's
+  current census.
