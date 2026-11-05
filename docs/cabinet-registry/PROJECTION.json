@@ -1,0 +1,580 @@
+{
+ "cabinets": {
+  "cab-0001": {
+   "members": [
+    {
+     "id": "sp-20261102-spine---personal-intelligence-spine---le-881013",
+     "kind": "planning-task",
+     "registry_line": 2,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "C-0027",
+     "kind": "epistemic-claim",
+     "registry_line": 3,
+     "relation": "primary",
+     "system": "claim-register"
+    },
+    {
+     "id": "C-0177",
+     "kind": "epistemic-claim",
+     "registry_line": 4,
+     "relation": "primary",
+     "system": "claim-register"
+    }
+   ]
+  },
+  "cab-0002": {
+   "members": [
+    {
+     "id": "sp-20261102-m2-user-owned-continuity--claim-c-0032-348d11",
+     "kind": "planning-task",
+     "registry_line": 6,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "C-0032",
+     "kind": "epistemic-claim",
+     "registry_line": 7,
+     "relation": "primary",
+     "system": "claim-register"
+    }
+   ]
+  },
+  "cab-0003": {
+   "members": [
+    {
+     "id": "sp-20261102-m8-verified-capability-lifecycle---libra-9a6cbe",
+     "kind": "planning-task",
+     "registry_line": 9,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "C-0033",
+     "kind": "epistemic-claim",
+     "registry_line": 10,
+     "relation": "primary",
+     "system": "claim-register"
+    }
+   ]
+  },
+  "cab-0004": {
+   "members": [
+    {
+     "id": "sp-20261102-commercial-sequence-plan-v2--claim-c-007-d1bbdb",
+     "kind": "planning-task",
+     "registry_line": 12,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "C-0070",
+     "kind": "epistemic-claim",
+     "registry_line": 13,
+     "relation": "primary",
+     "system": "claim-register"
+    },
+    {
+     "id": "C-0082",
+     "kind": "epistemic-claim",
+     "registry_line": 14,
+     "relation": "primary",
+     "system": "claim-register"
+    }
+   ]
+  },
+  "cab-0005": {
+   "members": [
+    {
+     "id": "sp-20261102-simlab-core--49-paid-test--claims-c-0071-a71ada",
+     "kind": "planning-task",
+     "registry_line": 16,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "C-0071",
+     "kind": "epistemic-claim",
+     "registry_line": 17,
+     "relation": "primary",
+     "system": "claim-register"
+    },
+    {
+     "id": "C-0072",
+     "kind": "epistemic-claim",
+     "registry_line": 18,
+     "relation": "primary",
+     "system": "claim-register"
+    }
+   ]
+  },
+  "cab-0006": {
+   "members": [
+    {
+     "id": "sp-20261102-commercial-decision-3a---cheap-paid-test-86c810",
+     "kind": "planning-task",
+     "registry_line": 20,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "C-0075",
+     "kind": "epistemic-claim",
+     "registry_line": 21,
+     "relation": "primary",
+     "system": "claim-register"
+    }
+   ]
+  },
+  "cab-0007": {
+   "members": [
+    {
+     "id": "sp-20261102-pai-spine-kit-phase-a--claim-c-0080--gom-39b3b7",
+     "kind": "planning-task",
+     "registry_line": 23,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "C-0080",
+     "kind": "epistemic-claim",
+     "registry_line": 24,
+     "relation": "primary",
+     "system": "claim-register"
+    },
+    {
+     "id": "C-0081",
+     "kind": "epistemic-claim",
+     "registry_line": 25,
+     "relation": "primary",
+     "system": "claim-register"
+    }
+   ]
+  },
+  "cab-0008": {
+   "members": [
+    {
+     "id": "sp-20261102-domain-public-task-inbox---watch--5-tool-7e91dc",
+     "kind": "planning-task",
+     "registry_line": 27,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "C-0103",
+     "kind": "epistemic-claim",
+     "registry_line": 28,
+     "relation": "primary",
+     "system": "claim-register"
+    }
+   ]
+  },
+  "cab-0009": {
+   "members": [
+    {
+     "id": "sp-20261102-scheduler-independence-phase-2---build-s-0b2bf3",
+     "kind": "planning-task",
+     "registry_line": 30,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "C-0104",
+     "kind": "epistemic-claim",
+     "registry_line": 31,
+     "relation": "primary",
+     "system": "claim-register"
+    }
+   ]
+  },
+  "cab-0010": {
+   "members": [
+    {
+     "id": "sp-20261102-portable-continuity-r1-promotion---watch-104321",
+     "kind": "planning-task",
+     "registry_line": 33,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "C-0107",
+     "kind": "epistemic-claim",
+     "registry_line": 34,
+     "relation": "primary",
+     "system": "claim-register"
+    }
+   ]
+  },
+  "cab-0011": {
+   "members": [
+    {
+     "id": "sp-20261102-moats-done-basic---no-luc-con-lai-theo-r-78e818",
+     "kind": "planning-task",
+     "registry_line": 36,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "C-0122",
+     "kind": "epistemic-claim",
+     "registry_line": 37,
+     "relation": "primary",
+     "system": "claim-register"
+    }
+   ]
+  },
+  "cab-0012": {
+   "members": [
+    {
+     "id": "sp-20261102-negative-space---surplus-s1-s15-cho-quye-5b417e",
+     "kind": "planning-task",
+     "registry_line": 39,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "C-0136",
+     "kind": "epistemic-claim",
+     "registry_line": 40,
+     "relation": "primary",
+     "system": "claim-register"
+    },
+    {
+     "id": "C-0168",
+     "kind": "epistemic-claim",
+     "registry_line": 41,
+     "relation": "primary",
+     "system": "claim-register"
+    },
+    {
+     "id": "C-0169",
+     "kind": "epistemic-claim",
+     "registry_line": 42,
+     "relation": "primary",
+     "system": "claim-register"
+    },
+    {
+     "id": "C-0170",
+     "kind": "epistemic-claim",
+     "registry_line": 43,
+     "relation": "primary",
+     "system": "claim-register"
+    }
+   ]
+  },
+  "cab-0013": {
+   "members": [
+    {
+     "id": "sp-20261102-unverified-systems-u1-u20---cho-kiem-chu-57ea63",
+     "kind": "planning-task",
+     "registry_line": 45,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "sp-20261102-orphan-briefs---101-brief-chua-co-result-dc93de",
+     "kind": "planning-task",
+     "registry_line": 46,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "C-0139",
+     "kind": "epistemic-claim",
+     "registry_line": 47,
+     "relation": "primary",
+     "system": "claim-register"
+    },
+    {
+     "id": "C-0140",
+     "kind": "epistemic-claim",
+     "registry_line": 48,
+     "relation": "primary",
+     "system": "claim-register"
+    }
+   ]
+  },
+  "cab-0014": {
+   "members": [
+    {
+     "id": "sp-20261102-intent-excavation-mechanism--claim-c-017-ebc799",
+     "kind": "planning-task",
+     "registry_line": 50,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "C-0174",
+     "kind": "epistemic-claim",
+     "registry_line": 51,
+     "relation": "primary",
+     "system": "claim-register"
+    }
+   ]
+  },
+  "cab-0015": {
+   "members": [
+    {
+     "id": "sp-20261102-claim-register---slice-2-tu-dong-hoa--cl-2be477",
+     "kind": "planning-task",
+     "registry_line": 53,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "C-0175",
+     "kind": "epistemic-claim",
+     "registry_line": 54,
+     "relation": "primary",
+     "system": "claim-register"
+    }
+   ]
+  },
+  "cab-0016": {
+   "members": [
+    {
+     "id": "sp-20261102-drive-parked-archive---parked-by-design--f16b25",
+     "kind": "planning-task",
+     "registry_line": 56,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "C-0192",
+     "kind": "epistemic-claim",
+     "registry_line": 57,
+     "relation": "primary",
+     "system": "claim-register"
+    },
+    {
+     "id": "C-0194",
+     "kind": "epistemic-claim",
+     "registry_line": 58,
+     "relation": "primary",
+     "system": "claim-register"
+    }
+   ]
+  }
+ },
+ "generated_from": {
+  "generated_at": "2026-11-05T12:20:55-08:00",
+  "registry_head_sha256": "24d0b715fa4e61d85aaa4dfa49ae25e56e95267270a1805db3d5789cab4fd716",
+  "registry_lines": 58
+ },
+ "members": {
+  "claim-register:C-0027": {
+   "cabinet_id": "cab-0001",
+   "registry_line": 3,
+   "relation": "primary"
+  },
+  "claim-register:C-0032": {
+   "cabinet_id": "cab-0002",
+   "registry_line": 7,
+   "relation": "primary"
+  },
+  "claim-register:C-0033": {
+   "cabinet_id": "cab-0003",
+   "registry_line": 10,
+   "relation": "primary"
+  },
+  "claim-register:C-0070": {
+   "cabinet_id": "cab-0004",
+   "registry_line": 13,
+   "relation": "primary"
+  },
+  "claim-register:C-0071": {
+   "cabinet_id": "cab-0005",
+   "registry_line": 17,
+   "relation": "primary"
+  },
+  "claim-register:C-0072": {
+   "cabinet_id": "cab-0005",
+   "registry_line": 18,
+   "relation": "primary"
+  },
+  "claim-register:C-0075": {
+   "cabinet_id": "cab-0006",
+   "registry_line": 21,
+   "relation": "primary"
+  },
+  "claim-register:C-0080": {
+   "cabinet_id": "cab-0007",
+   "registry_line": 24,
+   "relation": "primary"
+  },
+  "claim-register:C-0081": {
+   "cabinet_id": "cab-0007",
+   "registry_line": 25,
+   "relation": "primary"
+  },
+  "claim-register:C-0082": {
+   "cabinet_id": "cab-0004",
+   "registry_line": 14,
+   "relation": "primary"
+  },
+  "claim-register:C-0103": {
+   "cabinet_id": "cab-0008",
+   "registry_line": 28,
+   "relation": "primary"
+  },
+  "claim-register:C-0104": {
+   "cabinet_id": "cab-0009",
+   "registry_line": 31,
+   "relation": "primary"
+  },
+  "claim-register:C-0107": {
+   "cabinet_id": "cab-0010",
+   "registry_line": 34,
+   "relation": "primary"
+  },
+  "claim-register:C-0122": {
+   "cabinet_id": "cab-0011",
+   "registry_line": 37,
+   "relation": "primary"
+  },
+  "claim-register:C-0136": {
+   "cabinet_id": "cab-0012",
+   "registry_line": 40,
+   "relation": "primary"
+  },
+  "claim-register:C-0139": {
+   "cabinet_id": "cab-0013",
+   "registry_line": 47,
+   "relation": "primary"
+  },
+  "claim-register:C-0140": {
+   "cabinet_id": "cab-0013",
+   "registry_line": 48,
+   "relation": "primary"
+  },
+  "claim-register:C-0168": {
+   "cabinet_id": "cab-0012",
+   "registry_line": 41,
+   "relation": "primary"
+  },
+  "claim-register:C-0169": {
+   "cabinet_id": "cab-0012",
+   "registry_line": 42,
+   "relation": "primary"
+  },
+  "claim-register:C-0170": {
+   "cabinet_id": "cab-0012",
+   "registry_line": 43,
+   "relation": "primary"
+  },
+  "claim-register:C-0174": {
+   "cabinet_id": "cab-0014",
+   "registry_line": 51,
+   "relation": "primary"
+  },
+  "claim-register:C-0175": {
+   "cabinet_id": "cab-0015",
+   "registry_line": 54,
+   "relation": "primary"
+  },
+  "claim-register:C-0177": {
+   "cabinet_id": "cab-0001",
+   "registry_line": 4,
+   "relation": "primary"
+  },
+  "claim-register:C-0192": {
+   "cabinet_id": "cab-0016",
+   "registry_line": 57,
+   "relation": "primary"
+  },
+  "claim-register:C-0194": {
+   "cabinet_id": "cab-0016",
+   "registry_line": 58,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-claim-register---slice-2-tu-dong-hoa--cl-2be477": {
+   "cabinet_id": "cab-0015",
+   "registry_line": 53,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-commercial-decision-3a---cheap-paid-test-86c810": {
+   "cabinet_id": "cab-0006",
+   "registry_line": 20,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-commercial-sequence-plan-v2--claim-c-007-d1bbdb": {
+   "cabinet_id": "cab-0004",
+   "registry_line": 12,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-domain-public-task-inbox---watch--5-tool-7e91dc": {
+   "cabinet_id": "cab-0008",
+   "registry_line": 27,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-drive-parked-archive---parked-by-design--f16b25": {
+   "cabinet_id": "cab-0016",
+   "registry_line": 56,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-intent-excavation-mechanism--claim-c-017-ebc799": {
+   "cabinet_id": "cab-0014",
+   "registry_line": 50,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-m2-user-owned-continuity--claim-c-0032-348d11": {
+   "cabinet_id": "cab-0002",
+   "registry_line": 6,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-m8-verified-capability-lifecycle---libra-9a6cbe": {
+   "cabinet_id": "cab-0003",
+   "registry_line": 9,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-moats-done-basic---no-luc-con-lai-theo-r-78e818": {
+   "cabinet_id": "cab-0011",
+   "registry_line": 36,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-negative-space---surplus-s1-s15-cho-quye-5b417e": {
+   "cabinet_id": "cab-0012",
+   "registry_line": 39,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-orphan-briefs---101-brief-chua-co-result-dc93de": {
+   "cabinet_id": "cab-0013",
+   "registry_line": 46,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-pai-spine-kit-phase-a--claim-c-0080--gom-39b3b7": {
+   "cabinet_id": "cab-0007",
+   "registry_line": 23,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-portable-continuity-r1-promotion---watch-104321": {
+   "cabinet_id": "cab-0010",
+   "registry_line": 33,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-scheduler-independence-phase-2---build-s-0b2bf3": {
+   "cabinet_id": "cab-0009",
+   "registry_line": 30,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-simlab-core--49-paid-test--claims-c-0071-a71ada": {
+   "cabinet_id": "cab-0005",
+   "registry_line": 16,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-spine---personal-intelligence-spine---le-881013": {
+   "cabinet_id": "cab-0001",
+   "registry_line": 2,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-unverified-systems-u1-u20---cho-kiem-chu-57ea63": {
+   "cabinet_id": "cab-0013",
+   "registry_line": 45,
+   "relation": "primary"
+  }
+ },
+ "projection": "cabinet-membership-v1"
+}
