@@ -1,3 +1,7 @@
+> **SUPERSEDED IN PART (2026-11-05 10:45 PT):** the exception criterion below (source smaller than the
+> label envelope) was refuted by Codex's measurements and replaced by the micro-class criterion in
+> `DECISION_2026-11-05_TOKEN_GATE_AMENDMENT_2.md`. The labels-retained principle stands unchanged.
+
 # DECISION 2026-11-05 — Phase 2 token gate amendment
 
 - **Decided by:** Tân, main chat, 2026-11-05 10:25 PT — replied "1" to Leona's numbered options (protocol 1-2-3).
