@@ -17,3 +17,10 @@ same-operation linkage purge). It replaces the Step 1 genesis builder
 for all appends from Step 2 onward. Tests: `tests/test_registrar.py`
 (scratch registries only, plus a read-only projection-parity check
 against the accepted registry).
+
+Tooling: `read_api.py` — the Phase 3 read API: one read-only surface
+across the Cabinet namespaces with per-namespace rights enforced
+(contract rule 4 / spec §6: explicit field wins, ratified namespace
+defaults, unknown = no read entitlement, HOME namespaces registry-only
+per §5.1). Usage: `READ_API.md`. Tests: `tests/test_read_api.py`
+(fixture-local state only).

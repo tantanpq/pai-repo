@@ -525,7 +525,10 @@ class TestIndexRegeneration(ScratchCase):
 
 class TestAcceptedRegistryParity(unittest.TestCase):
     """Read-only: the production fold/projector must reproduce the
-    accepted Step 1 projection byte-for-byte (same generated_at)."""
+    committed accepted projection byte-for-byte (same generated_at).
+    Expectations are derived from the committed projection itself —
+    no hardcoded registry state (gap G8: the Step 1 pilot constants
+    16 / 58 went stale the moment Step 2 appended)."""
 
     def test_projection_parity(self):
         reg = os.path.join(REPO, "docs", "cabinet-registry", "REGISTRY.jsonl")
@@ -539,8 +542,15 @@ class TestAcceptedRegistryParity(unittest.TestCase):
         lines, events = R.read_registry(reg)
         R.verify_chain(lines, events)
         state = R.fold_events(events)
-        self.assertEqual(state["max_mint_seq"], 16)
-        self.assertEqual(state["event_count"], 58)
+        self.assertEqual(
+            state["max_mint_seq"],
+            max(int(c[4:]) for c in committed_proj["cabinets"]))
+        self.assertEqual(
+            state["event_count"],
+            committed_proj["generated_from"]["registry_lines"])
+        self.assertEqual(
+            R.head_of(lines),
+            committed_proj["generated_from"]["registry_head_sha256"])
         rebuilt = R.build_projection(
             state, R.head_of(lines), len(lines),
             committed_proj["generated_from"]["generated_at"])
@@ -584,14 +594,16 @@ class TestCli(unittest.TestCase):
         reg = os.path.join(REPO, "docs", "cabinet-registry", "REGISTRY.jsonl")
         if not os.path.exists(reg):
             self.skipTest("accepted registry not present")
+        # Expectations derived from the registry file itself (gap G8:
+        # the Step 1 pilot constants 58 lines / pilot head went stale).
+        lines, events = R.read_registry(reg)
+        R.verify_chain(lines, events)
         r = self.run_cli("verify", "--registry", reg)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         out = json.loads(r.stdout)
         self.assertTrue(out["ok"])
-        self.assertEqual(out["lines"], 58)
-        self.assertEqual(
-            out["head"],
-            "24d0b715fa4e61d85aaa4dfa49ae25e56e95267270a1805db3d5789cab4fd716")
+        self.assertEqual(out["lines"], len(lines))
+        self.assertEqual(out["head"], R.head_of(lines))
 
     def test_cli_append_project_recover_cycle(self):
         with tempfile.TemporaryDirectory() as tmp:
