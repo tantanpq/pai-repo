@@ -1,0 +1,17 @@
+{
+ "function": "retrieval_query.make_snippet",
+ "text": "The filing cabinet plan locks four decisions. Token gate threshold is 500 tokens for the micro class.\nUnrelated line about weather and lunch.\nThe baseline window measured 1,193,691 tokens per finished brief over 99 briefs.\nAnother unrelated line about music production schedules.\n",
+ "qtokens": [
+  "token",
+  "gate",
+  "threshold",
+  "baseline",
+  "tokens",
+  "per",
+  "finished",
+  "brief"
+ ],
+ "cap": 260,
+ "snippet": "The filing cabinet plan locks four decisions. Token gate threshold is 500 tokens for the micro class. … The baseline window measured 1,193,691 tokens per finished brief over 99 briefs.",
+ "est_tokens_of_snippet": 46
+}
