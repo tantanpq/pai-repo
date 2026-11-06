@@ -23,8 +23,10 @@ Systems are the registry spellings — `vm-spine`, `claim-register`,
 ## Rights (contract rule 4, spec §6)
 
 - Effective level = the record's explicit `privacy` field when present
-  (explicit always wins; an out-of-vocabulary value fails closed to
-  `unknown`), else the namespace default. Defaults in force:
+  (explicit always wins; presence is tracked separately from value —
+  a present value that is null, not a string, or out of vocabulary
+  fails closed to `unknown`; only an absent field inherits the
+  default), else the namespace default. Defaults in force:
   claim-register, home-runloop, home-claim-service and vm-spine are all
   `house` (C1 `41c90c6`; HOME extension `2ecdb80`; vm-spine adoption
   `881aa8dc` / `69d8c8c`).
@@ -55,9 +57,16 @@ python3 -m packages.cabinet.read_api cabinet --id cab-0022
 python3 -m packages.cabinet.read_api resolve --system claim-register --id C-0140
 python3 -m packages.cabinet.read_api members --namespace vm-spine
 # fixture/test overrides: --registry PATH --claims-log PATH --spine-db PATH
+# claimreg dependency: --claimreg-module PATH (or $CABINET_CLAIMREG_PATH;
+# default the canonical VM path). The module is NOT vendored here — its
+# sha256 is pinned in deps.json and verified before it is executed.
 ```
 
 Output is JSON. Tests: `tests/test_read_api.py` (fixture-local:
-scratch registry + fixture claims log + fixture spine DB; covers
-default resolution, explicit-wins, no-default denial, both forget
-paths, secondary resolution, and a read-only byte-identity check).
+scratch registry + fixture claims log + fixture spine DB + a staged
+copy of the canonical claimreg module supplied via `claimreg_path`;
+covers default resolution, explicit-wins, no-default denial,
+present-null/malformed fail-closed handling, both forget paths,
+tombstone exclusion from cabinet derivation, secondary resolution,
+the claimreg pin/missing-module failures, and a read-only
+byte-identity check with an AST write-path scan).

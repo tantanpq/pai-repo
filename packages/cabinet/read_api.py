@@ -10,7 +10,14 @@ is that surface for the Cabinet layer. It reads:
   REGISTRY.jsonl`, via registrar.py's own read/fold functions — the
   fold is the membership source of truth, spec §4);
 - native claim records from the VM claim register, through the live
-  claimreg module's read paths (load_events / fold / forget_tombstones);
+  claimreg module's read paths (load_events / fold / forget_tombstones).
+  The claimreg module is an EXTERNAL dependency with one canonical
+  source (it is not vendored here — the claim fold must not fork);
+  its location is parameterizable (constructor `claimreg_path`, CLI
+  `--claimreg-module`, env `CABINET_CLAIMREG_PATH`; default the
+  canonical VM path) and its sha256 is pinned in deps.json beside
+  this module — the loader verifies the pin before executing the
+  module and fails loudly on a missing file or a pin mismatch;
 - native task records from the VM spine read-model, opened read-only
   (`mode=ro&immutable=1` — a main-checkpoint read, the same scope the
   Step 4/5 censuses used). The spine `tasks` table carries no `privacy`
@@ -31,8 +38,10 @@ excluded family, not silently omitted.
 Rights model (contracts/admission-privacy-forget.md rule 4; spec §6):
 
 - a member's effective level is its record's explicit `privacy` field
-  when present (an explicit value outside the contract's level set
-  fails closed: it is treated as unknown, never as house);
+  when present (field PRESENCE is tracked separately from its value:
+  a present value that is null, not a string, or outside the
+  contract's level set fails closed — unknown, never house, never an
+  exception; only an ABSENT field may inherit the namespace default);
 - otherwise the namespace default applies. Ratified/adopted defaults:
   claim-register -> house (C1, DECISION_2026-11-05_UNMARKED_DEFAULT_
   HOUSE, commit 41c90c6); home-runloop and home-claim-service -> house
@@ -69,9 +78,11 @@ Usage (CLI):
   python3 -m packages.cabinet.read_api resolve --system claim-register --id C-0140
   python3 -m packages.cabinet.read_api members --namespace vm-spine
 Options: --registry PATH --claims-log PATH --spine-db PATH
-(the last two exist for fixtures/tests; defaults are the live stores).
+--claimreg-module PATH (defaults are the live stores; the overrides
+exist for fixtures/tests and for staged environments off the VM).
 """
 import argparse
+import hashlib
 import importlib.util
 import json
 import os
@@ -91,6 +102,12 @@ DEFAULT_REGISTRY = os.path.join(
     REPO, "docs", "cabinet-registry", "REGISTRY.jsonl")
 CLAIMREG_PATH = os.path.expanduser(
     "~/workspace/pai-continuity/claim-register/claimreg.py")
+# The claimreg dependency is parameterizable (gate-review fix round 1):
+# constructor argument > env var > canonical default above. Its bytes
+# are pinned in deps.json (the module is NOT vendored — one canonical
+# fold source); the loader verifies the pin before executing it.
+ENV_CLAIMREG_PATH = "CABINET_CLAIMREG_PATH"
+DEPS_PIN_PATH = os.path.join(_HERE, "deps.json")
 DEFAULT_SPINE_DB = os.path.expanduser(
     "~/workspace/pai-continuity/spine/build/shadow-1a/runtime/spine.db")
 
@@ -134,11 +151,52 @@ def normalize_system(system):
     return SYSTEM_ALIASES.get(system, system)
 
 
-def _load_claimreg(claims_log_path):
-    """Load the live claimreg module fresh (its read paths only) and,
-    for fixtures, point its LOG at the given claims.jsonl."""
+def _claimreg_pin():
+    """The sha256 pinned for the canonical claimreg module in
+    deps.json, or None when no pin is configured."""
+    try:
+        with open(DEPS_PIN_PATH, encoding="utf-8") as f:
+            deps = json.load(f)
+        pin = deps.get("claimreg", {}).get("sha256")
+        return pin if isinstance(pin, str) else None
+    except (OSError, ValueError):
+        return None
+
+
+def _resolve_claimreg_path(explicit=None):
+    """claimreg module location: explicit argument >
+    $CABINET_CLAIMREG_PATH > the canonical VM path."""
+    if explicit:
+        return explicit
+    env = os.environ.get(ENV_CLAIMREG_PATH)
+    if env:
+        return env
+    return CLAIMREG_PATH
+
+
+def _load_claimreg(claimreg_path, claims_log_path):
+    """Load the claimreg module (its read paths only) from the given
+    location, verifying the deps.json sha256 pin first when one is
+    configured; for fixtures, point its LOG at the given claims.jsonl.
+    Fails loudly (ReadAPIError) on a missing file or a pin mismatch —
+    never silently substitutes another module."""
+    path = _resolve_claimreg_path(claimreg_path)
+    if not os.path.isfile(path):
+        raise ReadAPIError(
+            f"claimreg module not found at {path!r} (point at the"
+            f" canonical module via claimreg_path / --claimreg-module"
+            f" / ${ENV_CLAIMREG_PATH})")
+    pin = _claimreg_pin()
+    if pin is not None:
+        with open(path, "rb") as f:
+            digest = hashlib.sha256(f.read()).hexdigest()
+        if digest != pin:
+            raise ReadAPIError(
+                f"claimreg module at {path!r} does not match the"
+                f" deps.json pin (sha256 {digest} != {pin}); refusing"
+                " to execute an unpinned claim fold")
     spec = importlib.util.spec_from_file_location(
-        "cabinet_read_api_claimreg", CLAIMREG_PATH)
+        "cabinet_read_api_claimreg", path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     if claims_log_path:
@@ -154,7 +212,8 @@ class ReadAPI:
     """
 
     def __init__(self, registry_path=DEFAULT_REGISTRY, claims_log_path=None,
-                 spine_db_path=DEFAULT_SPINE_DB, namespace_defaults=None):
+                 spine_db_path=DEFAULT_SPINE_DB, namespace_defaults=None,
+                 claimreg_path=None):
         lines, events = R.read_registry(registry_path)
         R.verify_chain(lines, events)
         self._state = R.fold_events(events)
@@ -176,6 +235,7 @@ class ReadAPI:
             lst.sort(key=lambda e: e["registry_line"])
         # Native claim store (lazy): {claim_id: claim dict} + tombstones.
         self._claims_log_path = claims_log_path
+        self.claimreg_path = _resolve_claimreg_path(claimreg_path)
         self._claims = None
         self._claim_tombstones = None
         # Native spine store (lazy read-only connection).
@@ -187,7 +247,7 @@ class ReadAPI:
 
     def _load_claims(self):
         if self._claims is None:
-            mod = _load_claimreg(self._claims_log_path)
+            mod = _load_claimreg(self.claimreg_path, self._claims_log_path)
             events = mod.load_events()
             self._claims = {}
             for claim in mod.fold(events):
@@ -224,25 +284,34 @@ class ReadAPI:
     # ------------------------------------------------ rights core
 
     def _explicit_privacy(self, system, native_id):
-        """The record's own `privacy` field, or None. HOME namespaces
-        are registry-only: their records are not read from here, so an
-        explicit field there is unobserved and None is returned."""
+        """(present, value) for the record's own `privacy` field.
+        Presence is tracked separately from the value: a field present
+        with a null or malformed value is NOT absent and must never
+        inherit the namespace default. HOME namespaces are
+        registry-only: their records are not read from here, so the
+        field is unobserved and (False, None) is returned."""
         if system == "claim-register":
             claims, _ = self._load_claims()
             claim = claims.get(native_id)
-            return claim.get("privacy") if claim else None
+            if claim is None or "privacy" not in claim:
+                return False, None
+            return True, claim["privacy"]
         if system == "vm-spine":
             row = self._spine_row(native_id)
-            return row.get("privacy") if row else None
-        return None
+            if row is None or "privacy" not in row:
+                return False, None
+            return True, row["privacy"]
+        return False, None
 
     def _effective_level(self, system, native_id):
         """(level_or_None, basis). level None == unknown == no read
-        entitlement. An explicit value outside the contract level set
-        fails closed as unknown with basis 'explicit-invalid'."""
-        explicit = self._explicit_privacy(system, native_id)
-        if explicit is not None:
-            if explicit in _STRICTNESS:
+        entitlement. A PRESENT explicit value that is null, not a
+        string, or outside the contract level set fails closed as
+        unknown with basis 'explicit-invalid'; only an ABSENT field
+        inherits the namespace default."""
+        present, explicit = self._explicit_privacy(system, native_id)
+        if present:
+            if isinstance(explicit, str) and explicit in _STRICTNESS:
                 return explicit, "explicit"
             return None, "explicit-invalid"
         default = self._defaults.get(system)
@@ -460,6 +529,10 @@ def _add_store_opts(p):
     p.add_argument("--claims-log", default=None,
                    help="claims.jsonl path (default: the live register)")
     p.add_argument("--spine-db", default=DEFAULT_SPINE_DB)
+    p.add_argument("--claimreg-module", default=None,
+                   help="path to the canonical claimreg.py (default:"
+                        " $CABINET_CLAIMREG_PATH or the canonical VM"
+                        " path; sha256 verified against deps.json)")
 
 
 def main(argv=None):
@@ -478,7 +551,8 @@ def main(argv=None):
     try:
         api = ReadAPI(registry_path=args.registry,
                       claims_log_path=args.claims_log,
-                      spine_db_path=args.spine_db)
+                      spine_db_path=args.spine_db,
+                      claimreg_path=args.claimreg_module)
         if args.op == "resolve":
             out = api.resolve(args.system, args.id)
         elif args.op == "cabinet":
