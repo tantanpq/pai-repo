@@ -66,9 +66,11 @@ def claim(cid, **kw):
 # deliberate exception is the loader's exec_module on the hash-pinned
 # claimreg dependency (audited loading, not a write path).
 _FORBIDDEN_CALL_ATTRS = {
-    "write", "writelines", "append_events", "forget_member", "project",
+    "write", "writelines", "write_text", "write_bytes", "touch",
+    "append_events", "forget_member", "project",
     "admit_batch", "remove", "unlink", "rmdir", "rename", "replace",
-    "mkdir", "makedirs", "system", "popen",
+    "mkdir", "makedirs", "rmtree", "copyfile", "copy2", "copytree",
+    "system", "popen",
 }
 _FORBIDDEN_IMPORTS = {"subprocess", "shutil"}
 _FORBIDDEN_FROM_IMPORTS = {"append_events", "forget_member", "project",
@@ -98,18 +100,96 @@ def _const_str(node):
     return None
 
 
+_GAP = "\x00"  # sentinel for interpolated (non-constant) f-string spans
+
+
+def _static_text(node):
+    """Statically known text of a string expression: constants
+    verbatim; an f-string's constant spans verbatim with each
+    interpolation replaced by the _GAP sentinel. None when the text
+    is not statically known (names, calls, ...)."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.JoinedStr):
+        parts = []
+        for v in node.values:
+            if isinstance(v, ast.Constant) and isinstance(v.value, str):
+                parts.append(v.value)
+            else:
+                parts.append(_GAP)
+        return "".join(parts)
+    return None
+
+
+def _sqlite_connect_problem(node):
+    """None when this sqlite3.connect(...) call is PROVABLY
+    read-only, else a problem string. Provable means: the target is
+    statically known text of a file: URI, the call passes uri=True,
+    and the URI's query — parsed as a query string, never
+    substring-matched — carries exactly one mode parameter whose
+    value is fully constant and exactly 'ro' (immutable=1 and the
+    inert comment parameter are the only other recognized
+    parameters). The fix-1 scan's substring test was evaded by
+    mode=rwc&comment=mode=ro; real parsing is immune to that."""
+    if not node.args:
+        return "sqlite3.connect without a target argument"
+    text = _static_text(node.args[0])
+    if text is None:
+        return "sqlite3.connect target is not statically known"
+    if not any(kw.arg == "uri" and isinstance(kw.value, ast.Constant)
+               and kw.value.value is True for kw in node.keywords):
+        return "sqlite3.connect without uri=True"
+    if not text.startswith("file:"):
+        return "sqlite3.connect target is not a file: URI"
+    rest = text[len("file:"):]
+    qmark = rest.find("?")
+    if qmark < 0:
+        return "sqlite3.connect URI has no query string"
+    params = {}
+    for pair in rest[qmark + 1:].split("&"):
+        if not pair:
+            continue
+        key, _, val = pair.partition("=")
+        params.setdefault(key, []).append(val)
+    modes = params.get("mode")
+    if modes is None or len(modes) != 1:
+        return "sqlite3.connect URI mode missing or repeated"
+    if _GAP in modes[0] or modes[0] != "ro":
+        return ("sqlite3.connect URI mode is not provably 'ro': "
+                f"{modes[0]!r}")
+    for key, vals in params.items():
+        if key in ("mode", "comment"):
+            continue
+        if key == "immutable" and vals == ["1"]:
+            continue
+        return ("sqlite3.connect URI parameter not provably inert: "
+                f"{key!r}")
+    return None
+
+
 def _write_path_problems(src):
     """AST scan of read_api.py for store/filesystem write paths.
-    Checks, exhaustively over the module's AST:
+    Checks, over the module's AST:
     - imports of subprocess/shutil, and from-imports of the
       Registrar's write entry points;
     - open(...) with a constant mode containing w/a/x/+;
-    - attribute calls named like a write/mutation entry point;
+    - attribute calls named like a write/mutation entry point
+      (including the pathlib mutation family: touch, write_text,
+      write_bytes, mkdir, unlink, rename, replace, ...);
     - os.* calls other than os.path.* and os.environ.get;
-    - sqlite3.connect(...) whose target is not a mode=ro URI.
-    Returns a list of problem strings ([] == no write path found)."""
+    - sqlite3.connect(...) whose target is not a PROVABLY read-only
+      file: URI (the query is parsed for real — mode exactly 'ro',
+      immutable=1 allowed, uri=True required; a substring match is
+      never used).
+    Returns a list of problem strings. An empty list means no write
+    path was found BY THESE CHECKS — a broad net with executed
+    negative controls, not a proof that none can exist."""
     problems = []
     tree = ast.parse(src)
+    bare_sqlite_connect = any(
+        isinstance(n, ast.ImportFrom) and n.module == "sqlite3"
+        and any(a.name in ("connect", "*") for a in n.names)
+        for n in ast.walk(tree))
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for a in node.names:
@@ -138,6 +218,11 @@ def _write_path_problems(src):
                     problems.append(
                         f"open() write mode {mode!r}"
                         f" (line {node.lineno})")
+            if bare_sqlite_connect and isinstance(func, ast.Name) \
+                    and func.id == "connect":
+                problem = _sqlite_connect_problem(node)
+                if problem is not None:
+                    problems.append(f"{problem} (line {node.lineno})")
             if isinstance(func, ast.Attribute):
                 if func.attr in _FORBIDDEN_CALL_ATTRS:
                     problems.append(
@@ -150,11 +235,10 @@ def _write_path_problems(src):
                         f"os call {dotted}() (line {node.lineno})")
                 if func.attr == "connect" and isinstance(
                         func.value, ast.Name) and func.value.id == "sqlite3":
-                    target = _const_str(node.args[0]) if node.args else None
-                    if target is None or "mode=ro" not in target:
+                    problem = _sqlite_connect_problem(node)
+                    if problem is not None:
                         problems.append(
-                            "sqlite3.connect without mode=ro URI"
-                            f" (line {node.lineno})")
+                            f"{problem} (line {node.lineno})")
     return problems
 
 
@@ -224,7 +308,14 @@ class Fixture(unittest.TestCase):
         kw.setdefault("claims_log_path", self.claims_log)
         kw.setdefault("spine_db_path", self.spine_db)
         kw.setdefault("claimreg_path", self.claimreg_copy)
-        return A.ReadAPI(**kw)
+        api = A.ReadAPI(**kw)
+        # Deterministic closure BEFORE the temp dir is cleaned up:
+        # addCleanup is LIFO and setUp registered tmp.cleanup first,
+        # so this close runs first. On Windows an open SQLite
+        # connection blocks unlinking the fixture spine.db (WinError
+        # 32 — the four cleanup errors of the fix-1 re-review).
+        self.addCleanup(api.close)
+        return api
 
 
 class TestDefaultsAndContent(Fixture):
@@ -370,7 +461,12 @@ class TestEntitlementEnforcement(Fixture):
         self.assertTrue(out["forgotten"])
         self.assertIsNone(out["content"])
         self.assertEqual(out["content_excluded"], "forgotten")
-        self.assertEqual(out["cabinets"], [])
+        # Tombstone-only shape (fix round 2): a forgotten member's
+        # cabinets/linkage and privacy are not published at all.
+        self.assertNotIn("cabinets", out)
+        self.assertNotIn("effective_privacy", out)
+        self.assertNotIn("privacy_basis", out)
+        self.assertEqual(out["tombstone"]["id"], "C-9003")
         # C-9004 is still LINKed in the registry but forgotten in its
         # own ledger: tombstone wins, content never readable.
         out = api.resolve("claim-register", "C-9004")
@@ -415,6 +511,61 @@ class TestEntitlementEnforcement(Fixture):
         self.assertEqual(list(cab["contents"]),
                          ["claim-register:C-9201"])
 
+    def test_forgotten_member_output_is_tombstone_only(self):
+        # Fix round 2 (re-review verdict item 2): the forgotten
+        # member's old privacy and linkage metadata must appear
+        # NOWHERE in any serialized output; only rule-6 tombstone
+        # fields may surface. Values are distinctive: the survivor
+        # is 'private', so 'secret-pointer' could only come from the
+        # forgotten member, whose LINK sits at registry line 3.
+        self.write_claims(
+            [claim("C-9201", privacy="private"),
+             claim("C-9202", privacy="secret-pointer")],
+            extra_events=[{"event": "INVALIDATE", "id": "C-9202",
+                           "reason": "forget",
+                           "at": "2026-11-05T12:30:00+00:00",
+                           "actor": ACTOR}])
+        self.append([mint(),
+                     link("cab-0001", "claim-register", "C-9201",
+                          "epistemic-claim"),
+                     link("cab-0001", "claim-register", "C-9202",
+                          "epistemic-claim")])
+        api = self.api()
+        cab = api.cabinet("cab-0001")
+        purged = cab["purged_members"]
+        self.assertEqual(len(purged), 1)
+        entry = purged[0]
+        self.assertEqual(set(entry), {"system", "namespace", "id",
+                                      "forgotten", "tombstone"})
+        self.assertEqual(entry["id"], "C-9202")
+        self.assertTrue(entry["forgotten"])
+        self.assertLessEqual(set(entry["tombstone"]),
+                             {"system", "id", "forget_at", "actor"})
+        self.assertEqual(entry["tombstone"]["forget_at"],
+                         "2026-11-05T12:30:00+00:00")
+        self.assertEqual(entry["tombstone"]["actor"], ACTOR)
+        # members(): the forgotten member lists tombstone-only too.
+        listing = api.members("claim-register")
+        by_id = {m["id"]: m for m in listing["members"]}
+        self.assertEqual(set(by_id["C-9202"]),
+                         {"system", "namespace", "id", "forgotten",
+                          "tombstone"})
+        # resolve(): no privacy, basis, kind or linkage keys at all.
+        out = api.resolve("claim-register", "C-9202")
+        for key in ("effective_privacy", "privacy_basis", "kind",
+                    "cabinets", "member"):
+            self.assertNotIn(key, out)
+        # Serialized hunt on every surface: the stale privacy value
+        # appears nowhere, and the forgotten member's LINK line (3)
+        # is not published as a registry_line in the cabinet (the
+        # survivor's line 2 legitimately appears).
+        for name, surface in (("cabinet", cab), ("resolve", out),
+                              ("members", listing)):
+            self.assertNotIn("secret-pointer",
+                             json.dumps(surface, sort_keys=True), name)
+        self.assertNotIn('"registry_line": 3',
+                         json.dumps(cab, sort_keys=True))
+
     def test_invalidated_claim_membership_without_content(self):
         self.write_claims(
             [claim("C-9008")],
@@ -456,9 +607,10 @@ class TestEntitlementEnforcement(Fixture):
         after = (digest(self.reg), digest(self.claims_log),
                  digest(self.spine_db))
         self.assertEqual(before, after)
-        # And the module carries no write path at all: an exhaustive
-        # AST scan (imports, open modes, mutation-named calls, os.*
-        # calls, sqlite connect targets) — not a literal-string grep.
+        # And the module carries no write path the AST scan knows:
+        # a broad scan (imports, open modes, mutation-named calls
+        # incl. the pathlib family, os.* calls, sqlite connect
+        # targets validated by real URI parsing) — not a grep.
         with open(os.path.join(PKG, "read_api.py"),
                   encoding="utf-8") as f:
             src = f.read()
@@ -470,6 +622,72 @@ class TestEntitlementEnforcement(Fixture):
                "os.remove('y')\n"
                "sqlite3.connect('file:z.db')\n")
         self.assertTrue(_write_path_problems(bad))
+
+    def test_g_scan_catches_fix2_evasions(self):
+        # Fix round 2 (re-review verdict item 3): both evasions Codex
+        # EXECUTED against the fix-1 scan must now produce findings,
+        # plus the rest of the pathlib mutation family.
+        touch = "from pathlib import Path\nPath(TARGET).touch()\n"
+        self.assertTrue(_write_path_problems(touch))
+        write_text = ("from pathlib import Path\n"
+                      "Path(TARGET).write_text('x')\n")
+        self.assertTrue(_write_path_problems(write_text))
+        write_bytes = ("from pathlib import Path\n"
+                       "Path(TARGET).write_bytes(b'x')\n")
+        self.assertTrue(_write_path_problems(write_bytes))
+        # Codex's exact sqlite counterexample: the real mode is rwc;
+        # a decoy comment parameter carries the 'mode=ro' substring
+        # that satisfied the old substring check.
+        rwc = ("import sqlite3\n"
+               "c = sqlite3.connect("
+               "f'file:{TARGET}?mode=rwc&comment=mode=ro', uri=True)\n")
+        self.assertTrue(_write_path_problems(rwc))
+        # Other writable shapes are caught too: a constant rw URI,
+        # and a non-URI connect (not provably read-only).
+        self.assertTrue(_write_path_problems(
+            "import sqlite3\n"
+            "sqlite3.connect('file:x.db?mode=rw', uri=True)\n"))
+        self.assertTrue(_write_path_problems(
+            "import sqlite3\nsqlite3.connect('plain.db')\n"))
+        # Positive control: the production form parses as read-only.
+        ro = ("import sqlite3\n"
+              "c = sqlite3.connect("
+              "f'file:{p}?mode=ro&immutable=1', uri=True)\n")
+        self.assertEqual(_write_path_problems(ro), [])
+
+    def test_spine_connection_close_is_deterministic(self):
+        # Fix round 2 (re-review verdict item 3): the API caches its
+        # spine SQLite connection; callers must be able to close it
+        # deterministically BEFORE temp-store cleanup. Windows
+        # refuses to unlink a DB whose connection is still open
+        # (WinError 32); the closest Linux-observable proxy asserted
+        # here is that after close() the connection object is gone
+        # and the DB file can be renamed and deleted — together with
+        # the code path (close() swaps the cached connection out and
+        # closes it; fixtures register it via addCleanup, which runs
+        # before the temp-dir cleanup).
+        self.write_claims([claim("C-9001")])
+        row = ("sp-fixture-1", "Fixture task", "QUEUED", "prog",
+               "surface", "proxy", "2026-11-02T00:00:00Z", None, None)
+        self.write_spine([row])
+        self.append([mint(), link("cab-0001", "vm-spine",
+                                   "sp-fixture-1", "planning-task")])
+        api = self.api()
+        api.resolve("vm-spine", "sp-fixture-1")  # opens the connection
+        self.assertIsNotNone(api._spine_conn)
+        api.close()
+        self.assertIsNone(api._spine_conn)
+        api.close()  # idempotent: no error, still closed
+        self.assertIsNone(api._spine_conn)
+        moved = self.spine_db + ".moved"
+        os.rename(self.spine_db, moved)
+        os.unlink(moved)
+        # Context-manager form: the connection closes on exit.
+        self.write_spine([row])
+        with self.api() as api2:
+            api2.resolve("vm-spine", "sp-fixture-1")
+            self.assertIsNotNone(api2._spine_conn)
+        self.assertIsNone(api2._spine_conn)
 
 
 class TestExplicitPrivacyPresence(Fixture):

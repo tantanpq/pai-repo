@@ -36,8 +36,15 @@ Systems are the registry spellings — `vm-spine`, `claim-register`,
   its structure but its combined content read is denied. A cabinet's
   derived level is the strictest member level.
 - Forgotten members (rule 6 tombstones, registry forget-consequence
-  UNLINKs) never appear as readable content; invalidated claims keep
+  UNLINKs) never appear as readable content; on every surface they
+  appear ONLY as a tombstone — (system, ID, forget timestamp, actor),
+  the rule-6 closed set. Their privacy level, basis, kind and
+  registry linkage are never published. Invalidated claims keep
   their membership but serve no content (contract rule 2).
+- `ReadAPI` holds one cached read-only SQLite connection to the
+  spine store. Call `close()` (idempotent) or use the API as a
+  context manager to release it deterministically — required on
+  Windows before deleting a fixture/temp spine DB.
 - HOME namespaces are served **registry-only** (spec §5.1): membership
   and derived rights, no content fetch — content stays with the owning
   systems on HOME.
@@ -67,6 +74,10 @@ scratch registry + fixture claims log + fixture spine DB + a staged
 copy of the canonical claimreg module supplied via `claimreg_path`;
 covers default resolution, explicit-wins, no-default denial,
 present-null/malformed fail-closed handling, both forget paths,
-tombstone exclusion from cabinet derivation, secondary resolution,
-the claimreg pin/missing-module failures, and a read-only
-byte-identity check with an AST write-path scan).
+tombstone exclusion from cabinet derivation, tombstone-only output
+for forgotten members on every surface, secondary resolution,
+the claimreg pin/missing-module failures, deterministic connection
+close, and a read-only byte-identity check with an AST write-path
+scan — whose sqlite check parses URIs for real (mode exactly 'ro')
+and whose negative controls include the pathlib/sqlite evasions
+executed by the fix-1 re-review).

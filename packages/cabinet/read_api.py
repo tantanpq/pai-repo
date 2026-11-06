@@ -62,7 +62,10 @@ Rights model (contracts/admission-privacy-forget.md rule 4; spec §6):
   fold itself, and a claim-register member forgotten in its own ledger
   (rule 6 tombstone) is reported as a tombstone and purged from cabinet
   content and derived-level computation even if a registry LINK were
-  still active;
+  still active. On EVERY output surface a forgotten member appears
+  ONLY as a tombstone — (system, ID, forget timestamp, actor), the
+  rule-6 closed set; its privacy level, basis, kind and registry
+  linkage are never published (gate re-review fix round 2, item 2);
 - invalidated (superseded) claims are not retrievable by default
   (contract rule 2; spec §5.1) — their membership still resolves, their
   content does not.
@@ -204,6 +207,37 @@ def _load_claimreg(claimreg_path, claims_log_path):
     return mod
 
 
+# Contract rule 6: the ONLY fields of a forgotten record that may
+# appear on an operative surface (tombstone-grade). Everything else —
+# privacy level, basis, kind, registry linkage — is purged from every
+# output (gate re-review fix round 2, item 2).
+_TOMBSTONE_OPTIONAL_FIELDS = ("forget_at", "actor")
+
+
+def _tombstone_public(tombstone, system, native_id):
+    """Project an internal tombstone onto the rule-6 closed field
+    set: (system, ID) always; forget timestamp / actor when recorded.
+    Internal annotations (e.g. the registry-side 'source' note) are
+    deliberately dropped."""
+    out = {"system": system, "id": native_id}
+    if tombstone:
+        for key in _TOMBSTONE_OPTIONAL_FIELDS:
+            if tombstone.get(key) is not None:
+                out[key] = tombstone[key]
+    return out
+
+
+def _purged_entry(system, native_id, tombstone):
+    """The only output shape in which a forgotten member may appear,
+    on any surface (cabinet purged_members, members listings,
+    resolve): tombstone-grade fields and nothing else."""
+    return {"system": system,
+            "namespace": CONTRACT_NAMESPACE[system],
+            "id": native_id,
+            "forgotten": True,
+            "tombstone": _tombstone_public(tombstone, system, native_id)}
+
+
 class ReadAPI:
     """One read surface over the Cabinet fold + reachable native stores.
 
@@ -242,6 +276,30 @@ class ReadAPI:
         self._spine_db_path = spine_db_path
         self._spine_conn = None
         self._spine_unavailable = None
+
+    # ------------------------------------------------ lifecycle
+
+    def close(self):
+        """Deterministically release the cached spine connection.
+        Idempotent. That connection's file handle is the only OS
+        resource this API holds — and the handle Windows refuses to
+        unlink while open (the fix-1 re-review's four fixture
+        cleanup errors, WinError 32); everything else is immutable
+        in-memory state. After close(), a later read simply reopens
+        the connection lazily."""
+        conn, self._spine_conn = self._spine_conn, None
+        if conn is not None:
+            try:
+                conn.close()
+            except sqlite3.Error:
+                pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.close()
+        return False
 
     # ------------------------------------------------ native stores
 
@@ -367,9 +425,24 @@ class ReadAPI:
         system = normalize_system(system)
         if system not in CONTRACT_NAMESPACE:
             raise ReadAPIError(f"unknown system: {system!r}")
+        forgotten, tombstone = self._forgotten(system, native_id)
+        if forgotten:
+            # Rule 6: a forgotten record surfaces ONLY as a
+            # tombstone. Its privacy level and basis are not even
+            # computed here, and no kind or linkage metadata is
+            # published (gate re-review fix round 2, item 2).
+            return {
+                "system": system,
+                "namespace": CONTRACT_NAMESPACE[system],
+                "id": native_id,
+                "forgotten": True,
+                "tombstone": _tombstone_public(tombstone, system,
+                                               native_id),
+                "content": None,
+                "content_excluded": "forgotten",
+            }
         entries = self._index.get((system, native_id), [])
         level, basis = self._effective_level(system, native_id)
-        forgotten, tombstone = self._forgotten(system, native_id)
         out = {
             "system": system,
             "namespace": CONTRACT_NAMESPACE[system],
@@ -384,13 +457,8 @@ class ReadAPI:
                 for e in entries],
             "effective_privacy": level if level is not None else "unknown",
             "privacy_basis": basis,
-            "forgotten": forgotten,
+            "forgotten": False,
         }
-        if forgotten:
-            out["tombstone"] = tombstone
-            out["content"] = None
-            out["content_excluded"] = "forgotten"
-            return out
         if level is None:
             out["content"] = None
             out["content_excluded"] = "unknown-privacy-level"
@@ -425,10 +493,18 @@ class ReadAPI:
             return None
         kept, purged = [], []
         for m in cdata["members"]:
+            forgotten, tombstone = self._forgotten(m["system"], m["id"])
+            if forgotten:
+                # Tombstone-only: the forgotten member's privacy,
+                # basis, kind and linkage never reach the output
+                # (gate re-review fix round 2, item 2).
+                purged.append(_purged_entry(m["system"], m["id"],
+                                            tombstone))
+                continue
             summary = self._member_summary(m["system"], m["id"], m["kind"])
             summary["relation"] = m["relation"]
             summary["registry_line"] = m["registry_line"]
-            (purged if summary["forgotten"] else kept).append(summary)
+            kept.append(summary)
         return cdata, kept, purged
 
     def _derived_level(self, cab_id):
@@ -497,6 +573,10 @@ class ReadAPI:
         for (sys_, mid), entries in sorted(self._index.items()):
             if sys_ != system:
                 continue
+            forgotten, tombstone = self._forgotten(sys_, mid)
+            if forgotten:
+                out.append(_purged_entry(sys_, mid, tombstone))
+                continue
             summary = self._member_summary(sys_, mid, entries[0]["kind"])
             summary["cabinets"] = [
                 {"cabinet_id": e["cabinet_id"], "relation": e["relation"],
@@ -549,22 +629,22 @@ def main(argv=None):
     p = sub.add_parser("cabinets"); _add_store_opts(p)
     args = ap.parse_args(argv)
     try:
-        api = ReadAPI(registry_path=args.registry,
-                      claims_log_path=args.claims_log,
-                      spine_db_path=args.spine_db,
-                      claimreg_path=args.claimreg_module)
-        if args.op == "resolve":
-            out = api.resolve(args.system, args.id)
-        elif args.op == "cabinet":
-            out = api.cabinet(args.id)
-            if not out.get("found"):
-                print(json.dumps(out, ensure_ascii=False, indent=1,
-                                 sort_keys=True))
-                return 2
-        elif args.op == "members":
-            out = api.members(args.namespace)
-        else:
-            out = api.cabinets()
+        with ReadAPI(registry_path=args.registry,
+                     claims_log_path=args.claims_log,
+                     spine_db_path=args.spine_db,
+                     claimreg_path=args.claimreg_module) as api:
+            if args.op == "resolve":
+                out = api.resolve(args.system, args.id)
+            elif args.op == "cabinet":
+                out = api.cabinet(args.id)
+                if not out.get("found"):
+                    print(json.dumps(out, ensure_ascii=False, indent=1,
+                                     sort_keys=True))
+                    return 2
+            elif args.op == "members":
+                out = api.members(args.namespace)
+            else:
+                out = api.cabinets()
     except (ReadAPIError, R.RegistryError) as e:
         print(json.dumps({"ok": False, "error": f"{type(e).__name__}: {e}"},
                          ensure_ascii=False, indent=1, sort_keys=True))
