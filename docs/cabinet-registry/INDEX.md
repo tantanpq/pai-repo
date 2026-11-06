@@ -6,7 +6,7 @@ only on this surface and in projections — never in registry history lines
 (spec §6 history rule). A record is always cited by its native
 (owning-system, ID) pair; a Cabinet ID names a work area only.
 
-- Accepted head: `b86a3c9391076e68a32fddcfe1e3b71814c8fbffea3ce590be51c5b9fc0c6b4c` · 95 registry lines · projection rebuilt 2026-11-05T17:04:47-08:00 from the accepted fold
+- Accepted head: `b86a3c9391076e68a32fddcfe1e3b71814c8fbffea3ce590be51c5b9fc0c6b4c` · 95 registry lines · projection rebuilt 2026-11-05T19:04:00-08:00 from the accepted fold
 
 ## Cabinets
 
@@ -59,9 +59,11 @@ only on this surface and in projections — never in registry history lines
   Step 2: 5,462 of them bind to `simple_body_r1:*` work units, the rest to other
   bodies' work areas (PAI-DEFECT-HUNT-*, PAI-IT-*, PAI-E2E-*, …). They are terminal
   historical records of the pre-run-loop era with no counterpart in the current
-  run-loop claims census (2026-10-29 → 2026-11-05); the 2 still-active resident
-  holds from this population ARE stamped (cab-0022), and the simple_body_r1 family
-  relationship is recorded there. Gap class: no counterpart in the current
+  run-loop claims census (2026-10-29 → 2026-11-05); the 2 resident-held claims observed
+  from this population were first stamped into cab-0022 (registry lines 90–91) and
+  then removed by targeted UNLINK (registry lines 94–95, Codex review finding F01)
+  — they are NOT stamped: both stand as members-pending-evidence in the September
+  simple_body_r1 exhibit below. Gap class: no counterpart in the current
   population / historical trace only. Evidence: `pai-repo-program/phase3/step2-evidence/HOME_CENSUS.json`.
 - **September simple_body_r1 work units named in the holds' evidence, and the
   two resident-held claims bound to them** —
