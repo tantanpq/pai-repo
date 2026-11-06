@@ -496,12 +496,465 @@
      "system": "home-runloop"
     }
    ]
+  },
+  "cab-0024": {
+   "members": [
+    {
+     "id": "sp-20261102-domain--store---domain---library--design-27b44f",
+     "kind": "planning-task",
+     "registry_line": 97,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "sp-20261102-domain--mission---taskbox--partial----da-7d4412",
+     "kind": "planning-task",
+     "registry_line": 98,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "sp-20261102-domain--assurance--partial----w1-not-rea-4ca862",
+     "kind": "planning-task",
+     "registry_line": 99,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "sp-20261102-domain--second-life--designed-only----la-4661a6",
+     "kind": "planning-task",
+     "registry_line": 100,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "sp-20261102-domain--chief-gov--built-off----keep-off-d3aa08",
+     "kind": "planning-task",
+     "registry_line": 101,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "sp-20261102-domain--pai-personal--built-off----retir-c9af69",
+     "kind": "planning-task",
+     "registry_line": 102,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0025": {
+   "members": [
+    {
+     "id": "sp-20261102-domain--tom-vision--partial----corpus-mo-0e06bb",
+     "kind": "planning-task",
+     "registry_line": 104,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "sp-20261102-domain--tom-tom-creative--partial----4-k-9a6f60",
+     "kind": "planning-task",
+     "registry_line": 105,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "sp-20261102-domain--tom-optics--partial----1-ku--gan-db3b51",
+     "kind": "planning-task",
+     "registry_line": 106,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "sp-20261102-domain--tom-spc-grr--partial----1-ku--ce-022485",
+     "kind": "planning-task",
+     "registry_line": 107,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "sp-20261102-domain--tom-calypso--designed-only----th-451f8d",
+     "kind": "planning-task",
+     "registry_line": 108,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "sp-20261102-domain--tom-python-metrology--designed-o-878a28",
+     "kind": "planning-task",
+     "registry_line": 109,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0026": {
+   "members": [
+    {
+     "id": "sp-20261102-domain--image-generation--partial----ide-60d23f",
+     "kind": "planning-task",
+     "registry_line": 111,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "sp-20261102-domain--image-editing--partial----chua-d-b6602f",
+     "kind": "planning-task",
+     "registry_line": 112,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0027": {
+   "members": [
+    {
+     "id": "sp-20261102-domain--memory-pai--partial----design-cl-dd340b",
+     "kind": "planning-task",
+     "registry_line": 114,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0028": {
+   "members": [
+    {
+     "id": "sp-20261102-domain--cybersecurity--partial----t3-1-s-c69d32",
+     "kind": "planning-task",
+     "registry_line": 116,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "sp-20261102-domain--home---device-ops--partial----ac-e3de64",
+     "kind": "planning-task",
+     "registry_line": 117,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0029": {
+   "members": [
+    {
+     "id": "sp-20261101-spine-1a-shadow-run-vm-capsule-unit-a078f9",
+     "kind": "planning-task",
+     "registry_line": 119,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "sp-20261102-spine-1a-checkpoints---day-7-07-11--cuto-770127",
+     "kind": "planning-task",
+     "registry_line": 120,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0030": {
+   "members": [
+    {
+     "id": "sp-20261102-handover-stale---checkpoint-rewrite--tu--533fa7",
+     "kind": "planning-task",
+     "registry_line": 122,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0031": {
+   "members": [
+    {
+     "id": "sp-20261102-capsule---next-slices-chua-chon---r-05-h-a1ff72",
+     "kind": "planning-task",
+     "registry_line": 124,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "sp-20261102-domain--memory-pai--partial----design-cl-dd340b",
+     "kind": "planning-task",
+     "registry_line": 125,
+     "relation": "secondary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0032": {
+   "members": [
+    {
+     "id": "sp-20261102-leona-voice-residuals---silero-noi-chen--87281e",
+     "kind": "planning-task",
+     "registry_line": 127,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0033": {
+   "members": [
+    {
+     "id": "sp-20261102-leona-signature-nuance---chua-lam--tu-so-f5a14e",
+     "kind": "planning-task",
+     "registry_line": 129,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0034": {
+   "members": [
+    {
+     "id": "sp-20261102-book-scoring-v2---remainder-pending-anch-b70ba0",
+     "kind": "planning-task",
+     "registry_line": 131,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0035": {
+   "members": [
+    {
+     "id": "sp-20261102-job-search---hireright-monitoring--balan-d2a6ec",
+     "kind": "planning-task",
+     "registry_line": 133,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0036": {
+   "members": [
+    {
+     "id": "sp-20261102-suno-download-quota---long-term-bottlene-ceba74",
+     "kind": "planning-task",
+     "registry_line": 135,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "sp-20261102-suno-naming-at-gen---e2e-chua-pass--cho--199315",
+     "kind": "planning-task",
+     "registry_line": 136,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0037": {
+   "members": [
+    {
+     "id": "sp-20261102-reels-1x-day---material-runway-can--cho--5f12ca",
+     "kind": "planning-task",
+     "registry_line": 138,
+     "relation": "primary",
+     "system": "vm-spine"
+    },
+    {
+     "id": "sp-20261102-web-z-media---batch--3-chua-merge--cho-l-964367",
+     "kind": "planning-task",
+     "registry_line": 139,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0038": {
+   "members": [
+    {
+     "id": "sp-20261102-cmm-study-system---python-buoi-2--05-11--aea905",
+     "kind": "planning-task",
+     "registry_line": 141,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0039": {
+   "members": [
+    {
+     "id": "sp-20261102-muc-2---pai-investment-scope-order---fou-135c71",
+     "kind": "planning-task",
+     "registry_line": 143,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0040": {
+   "members": [
+    {
+     "id": "sp-20261102-simlab-core-push-window-04-05-11---cmm-p-5d16ce",
+     "kind": "planning-task",
+     "registry_line": 145,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0041": {
+   "members": [
+    {
+     "id": "sp-20261102-n-400---cho-dieu-doi-chieu-giay-ket-hon--2cae4a",
+     "kind": "planning-task",
+     "registry_line": 147,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0042": {
+   "members": [
+    {
+     "id": "sp-20261102-free---easy---z-travel---validation-chua-5e0bce",
+     "kind": "planning-task",
+     "registry_line": 149,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0043": {
+   "members": [
+    {
+     "id": "sp-20261102-home-cp---build-dang-do---tapo-camera-ac-5cb122",
+     "kind": "planning-task",
+     "registry_line": 151,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0044": {
+   "members": [
+    {
+     "id": "sp-20261102-ssh-home--msi-gay---can-dieu-tra-rieng---dde510",
+     "kind": "planning-task",
+     "registry_line": 153,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0045": {
+   "members": [
+    {
+     "id": "sp-20261102-sl-4-thread-checkpoint-lifecycle---muc-6-48c8af",
+     "kind": "planning-task",
+     "registry_line": 155,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0046": {
+   "members": [
+    {
+     "id": "sp-20261102-camera-watch---phu-tran-negotiation---ch-18487d",
+     "kind": "planning-task",
+     "registry_line": 157,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0047": {
+   "members": [
+    {
+     "id": "sp-20261102-muc-7---public--leona-music-check--idea--0dfdfa",
+     "kind": "planning-task",
+     "registry_line": 159,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0048": {
+   "members": [
+    {
+     "id": "sp-20261102-muc-7---suno-daily-maxout-replacement-pl-960e23",
+     "kind": "planning-task",
+     "registry_line": 161,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0049": {
+   "members": [
+    {
+     "id": "sp-20261102-cho-tan--login-grok-com-1-lan-de-dan-tok-aeee62",
+     "kind": "planning-task",
+     "registry_line": 163,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0050": {
+   "members": [
+    {
+     "id": "sp-20261102-cho-tan--khoa-capsule-muc-8--diem--24--t-696f5c",
+     "kind": "planning-task",
+     "registry_line": 165,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0051": {
+   "members": [
+    {
+     "id": "sp-20261102-cho-tan--seal-key-m1--tu-so-cai-l117-2dc3e9",
+     "kind": "planning-task",
+     "registry_line": 167,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0052": {
+   "members": [
+    {
+     "id": "sp-20261102-cho-tan--mau-microvu-truoc-20-11--tu-so--227ab1",
+     "kind": "planning-task",
+     "registry_line": 169,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0053": {
+   "members": [
+    {
+     "id": "sp-20261102-cho-tan--quyet-gen-bo-sung-miles--tu-so--acc450",
+     "kind": "planning-task",
+     "registry_line": 171,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0054": {
+   "members": [
+    {
+     "id": "sp-20261102-domain--trading--partial----spec---data--422ce1",
+     "kind": "planning-task",
+     "registry_line": 173,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
   }
  },
  "generated_from": {
-  "generated_at": "2026-11-05T19:04:00-08:00",
-  "registry_head_sha256": "b86a3c9391076e68a32fddcfe1e3b71814c8fbffea3ce590be51c5b9fc0c6b4c",
-  "registry_lines": 95
+  "generated_at": "2026-11-05T19:35:53-08:00",
+  "registry_head_sha256": "55f42799e126fff2f541b393669014b88a07b2d8ae0341297c464eea792344fd",
+  "registry_lines": 173
  },
  "members": {
   "claim-register:C-0027": {
@@ -704,9 +1157,59 @@
    "registry_line": 88,
    "relation": "primary"
   },
+  "vm-spine:sp-20261101-spine-1a-shadow-run-vm-capsule-unit-a078f9": {
+   "cabinet_id": "cab-0029",
+   "registry_line": 119,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-book-scoring-v2---remainder-pending-anch-b70ba0": {
+   "cabinet_id": "cab-0034",
+   "registry_line": 131,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-camera-watch---phu-tran-negotiation---ch-18487d": {
+   "cabinet_id": "cab-0046",
+   "registry_line": 157,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-capsule---next-slices-chua-chon---r-05-h-a1ff72": {
+   "cabinet_id": "cab-0031",
+   "registry_line": 124,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-cho-tan--khoa-capsule-muc-8--diem--24--t-696f5c": {
+   "cabinet_id": "cab-0050",
+   "registry_line": 165,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-cho-tan--login-grok-com-1-lan-de-dan-tok-aeee62": {
+   "cabinet_id": "cab-0049",
+   "registry_line": 163,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-cho-tan--mau-microvu-truoc-20-11--tu-so--227ab1": {
+   "cabinet_id": "cab-0052",
+   "registry_line": 169,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-cho-tan--quyet-gen-bo-sung-miles--tu-so--acc450": {
+   "cabinet_id": "cab-0053",
+   "registry_line": 171,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-cho-tan--seal-key-m1--tu-so-cai-l117-2dc3e9": {
+   "cabinet_id": "cab-0051",
+   "registry_line": 167,
+   "relation": "primary"
+  },
   "vm-spine:sp-20261102-claim-register---slice-2-tu-dong-hoa--cl-2be477": {
    "cabinet_id": "cab-0015",
    "registry_line": 53,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-cmm-study-system---python-buoi-2--05-11--aea905": {
+   "cabinet_id": "cab-0038",
+   "registry_line": 141,
    "relation": "primary"
   },
   "vm-spine:sp-20261102-commercial-decision-3a---cheap-paid-test-86c810": {
@@ -719,6 +1222,103 @@
    "registry_line": 12,
    "relation": "primary"
   },
+  "vm-spine:sp-20261102-domain--assurance--partial----w1-not-rea-4ca862": {
+   "cabinet_id": "cab-0024",
+   "registry_line": 99,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-domain--chief-gov--built-off----keep-off-d3aa08": {
+   "cabinet_id": "cab-0024",
+   "registry_line": 101,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-domain--cybersecurity--partial----t3-1-s-c69d32": {
+   "cabinet_id": "cab-0028",
+   "registry_line": 116,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-domain--home---device-ops--partial----ac-e3de64": {
+   "cabinet_id": "cab-0028",
+   "registry_line": 117,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-domain--image-editing--partial----chua-d-b6602f": {
+   "cabinet_id": "cab-0026",
+   "registry_line": 112,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-domain--image-generation--partial----ide-60d23f": {
+   "cabinet_id": "cab-0026",
+   "registry_line": 111,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-domain--memory-pai--partial----design-cl-dd340b": {
+   "also": [
+    {
+     "cabinet_id": "cab-0031",
+     "registry_line": 125,
+     "relation": "secondary"
+    }
+   ],
+   "cabinet_id": "cab-0027",
+   "registry_line": 114,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-domain--mission---taskbox--partial----da-7d4412": {
+   "cabinet_id": "cab-0024",
+   "registry_line": 98,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-domain--pai-personal--built-off----retir-c9af69": {
+   "cabinet_id": "cab-0024",
+   "registry_line": 102,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-domain--second-life--designed-only----la-4661a6": {
+   "cabinet_id": "cab-0024",
+   "registry_line": 100,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-domain--store---domain---library--design-27b44f": {
+   "cabinet_id": "cab-0024",
+   "registry_line": 97,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-domain--tom-calypso--designed-only----th-451f8d": {
+   "cabinet_id": "cab-0025",
+   "registry_line": 108,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-domain--tom-optics--partial----1-ku--gan-db3b51": {
+   "cabinet_id": "cab-0025",
+   "registry_line": 106,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-domain--tom-python-metrology--designed-o-878a28": {
+   "cabinet_id": "cab-0025",
+   "registry_line": 109,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-domain--tom-spc-grr--partial----1-ku--ce-022485": {
+   "cabinet_id": "cab-0025",
+   "registry_line": 107,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-domain--tom-tom-creative--partial----4-k-9a6f60": {
+   "cabinet_id": "cab-0025",
+   "registry_line": 105,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-domain--tom-vision--partial----corpus-mo-0e06bb": {
+   "cabinet_id": "cab-0025",
+   "registry_line": 104,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-domain--trading--partial----spec---data--422ce1": {
+   "cabinet_id": "cab-0054",
+   "registry_line": 173,
+   "relation": "primary"
+  },
   "vm-spine:sp-20261102-domain-public-task-inbox---watch--5-tool-7e91dc": {
    "cabinet_id": "cab-0008",
    "registry_line": 27,
@@ -729,9 +1329,39 @@
    "registry_line": 56,
    "relation": "primary"
   },
+  "vm-spine:sp-20261102-free---easy---z-travel---validation-chua-5e0bce": {
+   "cabinet_id": "cab-0042",
+   "registry_line": 149,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-handover-stale---checkpoint-rewrite--tu--533fa7": {
+   "cabinet_id": "cab-0030",
+   "registry_line": 122,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-home-cp---build-dang-do---tapo-camera-ac-5cb122": {
+   "cabinet_id": "cab-0043",
+   "registry_line": 151,
+   "relation": "primary"
+  },
   "vm-spine:sp-20261102-intent-excavation-mechanism--claim-c-017-ebc799": {
    "cabinet_id": "cab-0014",
    "registry_line": 50,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-job-search---hireright-monitoring--balan-d2a6ec": {
+   "cabinet_id": "cab-0035",
+   "registry_line": 133,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-leona-signature-nuance---chua-lam--tu-so-f5a14e": {
+   "cabinet_id": "cab-0033",
+   "registry_line": 129,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-leona-voice-residuals---silero-noi-chen--87281e": {
+   "cabinet_id": "cab-0032",
+   "registry_line": 127,
    "relation": "primary"
   },
   "vm-spine:sp-20261102-m2-user-owned-continuity--claim-c-0032-348d11": {
@@ -747,6 +1377,26 @@
   "vm-spine:sp-20261102-moats-done-basic---no-luc-con-lai-theo-r-78e818": {
    "cabinet_id": "cab-0011",
    "registry_line": 36,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-muc-2---pai-investment-scope-order---fou-135c71": {
+   "cabinet_id": "cab-0039",
+   "registry_line": 143,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-muc-7---public--leona-music-check--idea--0dfdfa": {
+   "cabinet_id": "cab-0047",
+   "registry_line": 159,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-muc-7---suno-daily-maxout-replacement-pl-960e23": {
+   "cabinet_id": "cab-0048",
+   "registry_line": 161,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-n-400---cho-dieu-doi-chieu-giay-ket-hon--2cae4a": {
+   "cabinet_id": "cab-0041",
+   "registry_line": 147,
    "relation": "primary"
   },
   "vm-spine:sp-20261102-negative-space---surplus-s1-s15-cho-quye-5b417e": {
@@ -776,6 +1426,11 @@
    "registry_line": 33,
    "relation": "primary"
   },
+  "vm-spine:sp-20261102-reels-1x-day---material-runway-can--cho--5f12ca": {
+   "cabinet_id": "cab-0037",
+   "registry_line": 138,
+   "relation": "primary"
+  },
   "vm-spine:sp-20261102-scheduler-independence-phase-2---build-s-0b2bf3": {
    "cabinet_id": "cab-0009",
    "registry_line": 30,
@@ -786,14 +1441,49 @@
    "registry_line": 16,
    "relation": "primary"
   },
+  "vm-spine:sp-20261102-simlab-core-push-window-04-05-11---cmm-p-5d16ce": {
+   "cabinet_id": "cab-0040",
+   "registry_line": 145,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-sl-4-thread-checkpoint-lifecycle---muc-6-48c8af": {
+   "cabinet_id": "cab-0045",
+   "registry_line": 155,
+   "relation": "primary"
+  },
   "vm-spine:sp-20261102-spine---personal-intelligence-spine---le-881013": {
    "cabinet_id": "cab-0001",
    "registry_line": 2,
    "relation": "primary"
   },
+  "vm-spine:sp-20261102-spine-1a-checkpoints---day-7-07-11--cuto-770127": {
+   "cabinet_id": "cab-0029",
+   "registry_line": 120,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-ssh-home--msi-gay---can-dieu-tra-rieng---dde510": {
+   "cabinet_id": "cab-0044",
+   "registry_line": 153,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-suno-download-quota---long-term-bottlene-ceba74": {
+   "cabinet_id": "cab-0036",
+   "registry_line": 135,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-suno-naming-at-gen---e2e-chua-pass--cho--199315": {
+   "cabinet_id": "cab-0036",
+   "registry_line": 136,
+   "relation": "primary"
+  },
   "vm-spine:sp-20261102-unverified-systems-u1-u20---cho-kiem-chu-57ea63": {
    "cabinet_id": "cab-0013",
    "registry_line": 45,
+   "relation": "primary"
+  },
+  "vm-spine:sp-20261102-web-z-media---batch--3-chua-merge--cho-l-964367": {
+   "cabinet_id": "cab-0037",
+   "registry_line": 139,
    "relation": "primary"
   }
  },

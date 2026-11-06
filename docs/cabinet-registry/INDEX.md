@@ -6,7 +6,7 @@ only on this surface and in projections — never in registry history lines
 (spec §6 history rule). A record is always cited by its native
 (owning-system, ID) pair; a Cabinet ID names a work area only.
 
-- Accepted head: `b86a3c9391076e68a32fddcfe1e3b71814c8fbffea3ce590be51c5b9fc0c6b4c` · 95 registry lines · projection rebuilt 2026-11-05T19:04:00-08:00 from the accepted fold
+- Accepted head: `55f42799e126fff2f541b393669014b88a07b2d8ae0341297c464eea792344fd` · 173 registry lines · projection rebuilt 2026-11-05T19:35:53-08:00 from the accepted fold
 
 ## Cabinets
 
@@ -35,11 +35,42 @@ only on this surface and in projections — never in registry history lines
 | cab-0021 | receipt-withhold-test | home-runloop: receipt-withhold-test:mf-atest-f01t3a — primary |
 | cab-0022 | simple_body_r1 | home-runloop: simple_body_r1:PAI_AUTONOMY_WAVE_R1_QCHECK_WORK_R0 — primary<br>claim-service: claim_38cd9a9a-5ba4-402a-aab0-59312f1f3c3b — primary |
 | cab-0023 | organ-health-probe | home-runloop: organ-health-probe — primary |
+| cab-0024 | open-universe-census-mission-platform | vm-spine: sp-20261102-domain--store---domain---library--design-27b44f — primary<br>vm-spine: sp-20261102-domain--mission---taskbox--partial----da-7d4412 — primary<br>vm-spine: sp-20261102-domain--assurance--partial----w1-not-rea-4ca862 — primary<br>vm-spine: sp-20261102-domain--second-life--designed-only----la-4661a6 — primary<br>vm-spine: sp-20261102-domain--chief-gov--built-off----keep-off-d3aa08 — primary<br>vm-spine: sp-20261102-domain--pai-personal--built-off----retir-c9af69 — primary |
+| cab-0025 | open-universe-census-tom-knowledge | vm-spine: sp-20261102-domain--tom-vision--partial----corpus-mo-0e06bb — primary<br>vm-spine: sp-20261102-domain--tom-tom-creative--partial----4-k-9a6f60 — primary<br>vm-spine: sp-20261102-domain--tom-optics--partial----1-ku--gan-db3b51 — primary<br>vm-spine: sp-20261102-domain--tom-spc-grr--partial----1-ku--ce-022485 — primary<br>vm-spine: sp-20261102-domain--tom-calypso--designed-only----th-451f8d — primary<br>vm-spine: sp-20261102-domain--tom-python-metrology--designed-o-878a28 — primary |
+| cab-0026 | open-universe-census-image | vm-spine: sp-20261102-domain--image-generation--partial----ide-60d23f — primary<br>vm-spine: sp-20261102-domain--image-editing--partial----chua-d-b6602f — primary |
+| cab-0027 | open-universe-census-memory-pai | vm-spine: sp-20261102-domain--memory-pai--partial----design-cl-dd340b — primary |
+| cab-0028 | open-universe-census-ops | vm-spine: sp-20261102-domain--cybersecurity--partial----t3-1-s-c69d32 — primary<br>vm-spine: sp-20261102-domain--home---device-ops--partial----ac-e3de64 — primary |
+| cab-0029 | spine-1a-shadow-run | vm-spine: sp-20261101-spine-1a-shadow-run-vm-capsule-unit-a078f9 — primary<br>vm-spine: sp-20261102-spine-1a-checkpoints---day-7-07-11--cuto-770127 — primary |
+| cab-0030 | handover-checkpoint-rewrite | vm-spine: sp-20261102-handover-stale---checkpoint-rewrite--tu--533fa7 — primary |
+| cab-0031 | capsule-framework | vm-spine: sp-20261102-capsule---next-slices-chua-chon---r-05-h-a1ff72 — primary<br>vm-spine: sp-20261102-domain--memory-pai--partial----design-cl-dd340b — secondary |
+| cab-0032 | leona-voice-residuals | vm-spine: sp-20261102-leona-voice-residuals---silero-noi-chen--87281e — primary |
+| cab-0033 | leona-signature-nuance | vm-spine: sp-20261102-leona-signature-nuance---chua-lam--tu-so-f5a14e — primary |
+| cab-0034 | book-scoring-v2 | vm-spine: sp-20261102-book-scoring-v2---remainder-pending-anch-b70ba0 — primary |
+| cab-0035 | job-search-hireright | vm-spine: sp-20261102-job-search---hireright-monitoring--balan-d2a6ec — primary |
+| cab-0036 | suno-pipeline | vm-spine: sp-20261102-suno-download-quota---long-term-bottlene-ceba74 — primary<br>vm-spine: sp-20261102-suno-naming-at-gen---e2e-chua-pass--cho--199315 — primary |
+| cab-0037 | zmedia-content-lines | vm-spine: sp-20261102-reels-1x-day---material-runway-can--cho--5f12ca — primary<br>vm-spine: sp-20261102-web-z-media---batch--3-chua-merge--cho-l-964367 — primary |
+| cab-0038 | tom-cmm-study-system | vm-spine: sp-20261102-cmm-study-system---python-buoi-2--05-11--aea905 — primary |
+| cab-0039 | pai-investment-scope | vm-spine: sp-20261102-muc-2---pai-investment-scope-order---fou-135c71 — primary |
+| cab-0040 | simlab-push-window | vm-spine: sp-20261102-simlab-core-push-window-04-05-11---cmm-p-5d16ce — primary |
+| cab-0041 | n-400 | vm-spine: sp-20261102-n-400---cho-dieu-doi-chieu-giay-ket-hon--2cae4a — primary |
+| cab-0042 | free-easy-z-travel | vm-spine: sp-20261102-free---easy---z-travel---validation-chua-5e0bce — primary |
+| cab-0043 | home-cp-build | vm-spine: sp-20261102-home-cp---build-dang-do---tapo-camera-ac-5cb122 — primary |
+| cab-0044 | ssh-home-msi-repair | vm-spine: sp-20261102-ssh-home--msi-gay---can-dieu-tra-rieng---dde510 — primary |
+| cab-0045 | sl-4-thread-checkpoint-lifecycle | vm-spine: sp-20261102-sl-4-thread-checkpoint-lifecycle---muc-6-48c8af — primary |
+| cab-0046 | camera-watch | vm-spine: sp-20261102-camera-watch---phu-tran-negotiation---ch-18487d — primary |
+| cab-0047 | muc-7-leona-music-check-idea | vm-spine: sp-20261102-muc-7---public--leona-music-check--idea--0dfdfa — primary |
+| cab-0048 | muc-7-suno-daily-maxout-plan | vm-spine: sp-20261102-muc-7---suno-daily-maxout-replacement-pl-960e23 — primary |
+| cab-0049 | cho-tan-grok-token-bridge | vm-spine: sp-20261102-cho-tan--login-grok-com-1-lan-de-dan-tok-aeee62 — primary |
+| cab-0050 | cho-tan-capsule-section-8-lock | vm-spine: sp-20261102-cho-tan--khoa-capsule-muc-8--diem--24--t-696f5c — primary |
+| cab-0051 | cho-tan-seal-key-m1 | vm-spine: sp-20261102-cho-tan--seal-key-m1--tu-so-cai-l117-2dc3e9 — primary |
+| cab-0052 | cho-tan-microvu-sample | vm-spine: sp-20261102-cho-tan--mau-microvu-truoc-20-11--tu-so--227ab1 — primary |
+| cab-0053 | cho-tan-miles-supplementary-gen | vm-spine: sp-20261102-cho-tan--quyet-gen-bo-sung-miles--tu-so--acc450 — primary |
+| cab-0054 | trading-domain-census | vm-spine: sp-20261102-domain--trading--partial----spec---data--422ce1 — primary |
 
 ## Coverage
 
-- Cabinets minted: 23 (cab-0001…cab-0023).
-- Active memberships: 58 — 57 primary, 1 secondary. Per system: claim-register 25, claim-service 1, home-runloop 14, vm-spine 18.
+- Cabinets minted: 54 (cab-0001…cab-0054).
+- Active memberships: 105 — 103 primary, 2 secondary. Per system: claim-register 25, claim-service 1, home-runloop 14, vm-spine 65.
 
 ## Pending exhibits (not stamped — no Cabinet ID)
 
