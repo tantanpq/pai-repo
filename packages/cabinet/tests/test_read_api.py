@@ -154,6 +154,46 @@ def _effective_keywords(node):
     return mapping, opaque
 
 
+def _effective_arguments(node):
+    """(positional, keywords, opaque): the call's argument binding
+    normalized the way Python itself binds it, so the guarded
+    families judge the arguments the call will ACTUALLY receive
+    rather than the shapes they happened to be written in. A
+    `*` unpacking (ast.Starred) whose value is a literal tuple or
+    list is spliced into the positional sequence — elements
+    written before and after it shift exactly as they do at
+    runtime — and `**` unpackings go through
+    _effective_keywords' literal-dict expansion. Any unpacking
+    that cannot be statically resolved (a Starred over a name, a
+    call, any non-literal sequence; a `**` over anything but a
+    literal dict with constant string keys) sets opaque: the
+    slots it could hide or shift are unprovable, and every
+    guarded family fails closed on opaque. Fix round 6 exists
+    because extraction, not judgment, kept leaking: rounds 4–5
+    unified the keyword side and the mode judgment, but the
+    bare-open branch still selected its mode by raw position —
+    `len(node.args) >= 2` — so `open(*(TARGET, 'wb'))`, one
+    Starred wrapping the whole argument tuple, was misread as an
+    omitted-mode read and truncated a file with zero findings,
+    while the method family (which passed its first argument,
+    Starred included, to the shared judgment) caught its own
+    starred form. With one normalizer feeding every family,
+    there is no second extraction path left to drift."""
+    positional = []
+    opaque = False
+    for arg in node.args:
+        if isinstance(arg, ast.Starred):
+            value = arg.value
+            if isinstance(value, (ast.Tuple, ast.List)):
+                positional.extend(value.elts)
+            else:
+                opaque = True
+        else:
+            positional.append(arg)
+    keywords, kw_opaque = _effective_keywords(node)
+    return positional, keywords, opaque or kw_opaque
+
+
 def _sqlite_connect_problem(node):
     """None when this sqlite3.connect(...) call is PROVABLY
     read-only, else a problem string. Provable means: the target is
@@ -171,15 +211,17 @@ def _sqlite_connect_problem(node):
     after a '#' starts no query at all (fix round 3,
     counterexample A: file:{TARGET}#?mode=ro executed a writable
     connect while the fix-2 scan, which searched for '?' across the
-    fragment boundary, returned no findings). Keyword arguments
-    are read through _effective_keywords, so uri=True may arrive
-    via a statically literal `**` dict — and an unpacking that
-    cannot be statically resolved fails closed (fix round 4)."""
-    keywords, opaque = _effective_keywords(node)
+    fragment boundary, returned no findings). Arguments
+    are read through _effective_arguments, so the target and
+    uri=True may arrive via a statically literal `*` tuple or
+    `**` dict — and any unpacking that cannot be statically
+    resolved fails closed, since it could hide or shift the
+    target slot (fix rounds 4 and 6)."""
+    args, keywords, opaque = _effective_arguments(node)
     if opaque:
-        return ("sqlite3.connect **kwargs cannot be statically"
+        return ("sqlite3.connect arguments cannot be statically"
                 " resolved — not provably read-only")
-    target_node = node.args[0] if node.args \
+    target_node = args[0] if args \
         else keywords.get("database")
     if target_node is None:
         return "sqlite3.connect without a target argument"
@@ -264,12 +306,15 @@ def _method_open_problem(node):
     counterexample: Path(TARGET).open(**{'mode': 'wb'})). The
     mode judgment itself is _mode_problem, shared verbatim with
     the bare open() branch so the two families cannot drift
-    apart (fix round 5)."""
-    keywords, opaque = _effective_keywords(node)
+    apart (fix round 5). Arguments are extracted through the
+    shared _effective_arguments normalizer (fix round 6), so a
+    mode delivered by a statically literal `*` tuple is judged
+    by its content exactly like a directly written one."""
+    args, keywords, opaque = _effective_arguments(node)
     if opaque:
-        return (".open() **kwargs cannot be statically resolved"
+        return (".open() arguments cannot be statically resolved"
                 " — not provably a read open")
-    mode_node = node.args[0] if node.args else None
+    mode_node = args[0] if args else None
     if "mode" in keywords:
         mode_node = keywords["mode"]
     if mode_node is None:
@@ -301,13 +346,23 @@ def _write_path_problems(src):
       immutable=1 allowed, uri=True required; a substring match is
       never used, and the query is delimited the way SQLite
       delimits it: first '?' to first '#', fragment never query).
-    Keyword arguments of every guarded family above (bare open,
-    method .open, sqlite3.connect) are read through
-    _effective_keywords: a statically literal `**{...}` dict is
+    Arguments of every guarded family above (bare open,
+    method .open, sqlite3.connect) are read through the single
+    _effective_arguments normalizer, which binds them the way
+    Python binds them: a statically literal `**{...}` dict is
     expanded and evaluated exactly as if its entries were ordinary
-    keywords, and any `**` unpacking that cannot be statically
-    resolved is itself a finding — opaque arguments cannot be
-    proved safe, so the scan fails closed on them (fix round 4).
+    keywords (fix round 4), and a statically literal `*(...)`
+    tuple or list is spliced into the positional sequence, so
+    target/mode/uri are extracted from the normalized binding and
+    judged by content — `open(*(TARGET, 'wb'))` is a write open,
+    `open(*(TARGET, 'rb'))` is a read (fix round 6: the bare-open
+    branch previously selected its mode by raw argument count, so
+    the one-Starred form was misread as an omitted mode while the
+    method family caught its own starred form — extraction had
+    become the second, driftable path). Any unpacking, positional
+    or keyword, that cannot be statically resolved is itself a
+    finding — opaque arguments cannot be proved safe, so the scan
+    fails closed on them.
     The sqlite family was audited for the same asymmetry in fix
     round 5 and already complies: an unprovable connect target
     is not a proven read-only URI, and a `uri` that is supplied
@@ -340,14 +395,14 @@ def _write_path_problems(src):
         elif isinstance(node, ast.Call):
             func = node.func
             if isinstance(func, ast.Name) and func.id == "open":
-                keywords, opaque = _effective_keywords(node)
+                args, keywords, opaque = _effective_arguments(node)
                 if opaque:
                     problems.append(
-                        "open() **kwargs cannot be statically"
+                        "open() arguments cannot be statically"
                         f" resolved (line {node.lineno})")
                 mode_node = None
-                if len(node.args) >= 2:
-                    mode_node = node.args[1]
+                if len(args) >= 2:
+                    mode_node = args[1]
                 if "mode" in keywords:
                     mode_node = keywords["mode"]
                 if mode_node is not None:
@@ -998,6 +1053,98 @@ class TestEntitlementEnforcement(Fixture):
             "import sqlite3\n"
             "sqlite3.connect(**{'database': SOME_NAME,"
             " 'uri': True})\n"))
+
+    def test_g_scan_catches_fix6_evasions(self):
+        # Fix round 6 (re-review verdict item 1, the sole remaining
+        # blocker): the shared _mode_problem judgment was sound,
+        # but the bare-open branch EXTRACTED its mode by raw
+        # argument count — `len(node.args) >= 2` — so the verdict's
+        # executed counterexample
+        #     open(*(TARGET, 'wb')).close()
+        # whose AST carries ONE ast.Starred wrapping the whole
+        # argument tuple, was misread as an omitted-mode read and
+        # truncated a 24-byte file with zero findings, while the
+        # method family (which passed its first argument, Starred
+        # included, to the judgment) caught Path(TARGET).open(
+        # *('wb',)). Rounds 4–6 share one root pattern: a new
+        # DELIVERY mechanism for the same arguments (plain keyword
+        # → `**` dict → non-constant value → `*` tuple). The class
+        # fix: every guarded family extracts target/mode/uri from
+        # ONE normalized binding, _effective_arguments, which
+        # splices statically literal `*` tuples/lists into the
+        # positional sequence and expands literal `**` dicts;
+        # any unpacking that cannot be statically resolved could
+        # hide or shift a safety slot, so it fails closed.
+        starred_wb = "open(*(TARGET, 'wb')).close()\n"
+        self.assertTrue(_write_path_problems(starred_wb))
+        # Executed for real, mirroring the verdict: the snippet
+        # truncates a pre-existing 24-byte scratch file to 0.
+        target = os.path.join(self.tmp.name, "starred_proof.bin")
+        with open(target, "wb") as f:
+            f.write(b"x" * 24)
+        open(*(target, "wb")).close()
+        self.assertEqual(os.path.getsize(target), 0)
+        # A resolvable Starred is judged by CONTENT, not rejected
+        # wholesale: the same tuple carrying a read mode is
+        # accepted — and the read itself works.
+        starred_rb = "open(*(TARGET, 'rb')).close()\n"
+        self.assertEqual(_write_path_problems(starred_rb), [])
+        with open(target, "wb") as f:
+            f.write(b"payload")
+        with open(*(target, "rb")) as f:
+            self.assertEqual(f.read(), b"payload")
+        # Mixed form: elements after a spliced tuple land in
+        # their runtime positions — here 'wb' IS the mode slot.
+        mixed = "open(TARGET, *('wb',)).close()\n"
+        self.assertTrue(_write_path_problems(mixed))
+        with open(target, "wb") as f:
+            f.write(b"x" * 24)
+        open(target, *("wb",)).close()
+        self.assertEqual(os.path.getsize(target), 0)
+        # A list literal splices the same way as a tuple.
+        self.assertTrue(_write_path_problems(
+            "open(*[TARGET, 'wb'])\n"))
+        self.assertEqual(_write_path_problems(
+            "open(*[TARGET, 'rb'])\n"), [])
+        # An unresolvable Starred could hide the target AND the
+        # mode: fail closed.
+        self.assertTrue(_write_path_problems("open(*SOME_NAME)\n"))
+        self.assertTrue(_write_path_problems(
+            "open(TARGET, *REST)\n"))
+        # The connect family reads its target through the same
+        # normalizer: an unprovable starred target fails closed,
+        # a literal starred read-only URI with uri=True arriving
+        # through a literal `**` dict is accepted.
+        self.assertTrue(_write_path_problems(
+            "import sqlite3\n"
+            "sqlite3.connect(*(SOME_NAME,), uri=True)\n"))
+        self.assertEqual(_write_path_problems(
+            "import sqlite3\n"
+            "sqlite3.connect(*('file:x.db?mode=ro&immutable=1',),"
+            " **{'uri': True})\n"), [])
+        self.assertEqual(_write_path_problems(
+            "import sqlite3\n"
+            "sqlite3.connect(*('file:x.db?mode=ro',), uri=True)\n"),
+            [])
+        # Method-family starred forms stay caught through the
+        # shared normalizer — and its resolvable read form stays
+        # accepted.
+        self.assertTrue(_write_path_problems(
+            "from pathlib import Path\n"
+            "Path(TARGET).open(*('wb',)).close()\n"))
+        self.assertTrue(_write_path_problems(
+            "from pathlib import Path\n"
+            "Path(TARGET).open(*SOME_NAME).close()\n"))
+        self.assertEqual(_write_path_problems(
+            "from pathlib import Path\n"
+            "Path(TARGET).open(*('rb',)).close()\n"), [])
+        # Acceptances preserved: a starred tuple carrying only a
+        # target is the omitted-mode default read, and an
+        # unguarded call with an opaque unpacking stays exempt.
+        self.assertEqual(_write_path_problems(
+            "open(*(TARGET,))\n"), [])
+        self.assertEqual(_write_path_problems(
+            "some_function(*ARGS, **OPTS)\n"), [])
 
     def test_spine_connection_close_is_deterministic(self):
         # Fix round 2 (re-review verdict item 3): the API caches its

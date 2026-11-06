@@ -93,4 +93,11 @@ connect target / `uri`) that is supplied but not fully statically
 known — a name, a call, an interpolated f-string, including a
 value arriving inside an expanded literal dict — is a finding,
 never a skip; only an omitted mode (the default read) or a proven
-read-only constant passes.
+read-only constant passes. Arguments reach those judgments through
+one normalizer that binds them the way Python binds them: a
+statically literal `*(...)` tuple or list is spliced into the
+positional sequence, so a mode or target delivered by unpacking is
+judged by its content (`open(*(TARGET, 'wb'))` is a write open,
+`open(*(TARGET, 'rb'))` is a read), and any positional unpacking
+that cannot be statically resolved fails closed the same way —
+it could hide or shift the very slots being judged.
