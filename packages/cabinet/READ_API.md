@@ -80,4 +80,10 @@ the claimreg pin/missing-module failures, deterministic connection
 close, and a read-only byte-identity check with an AST write-path
 scan — whose sqlite check parses URIs for real (mode exactly 'ro')
 and whose negative controls include the pathlib/sqlite evasions
-executed by the fix-1 re-review).
+executed by the fix-1 re-review). The scan reads the keyword
+arguments of every guarded call family (bare `open`, method
+`.open`, `sqlite3.connect`) through one rule: a statically literal
+`**{...}` dict is expanded and evaluated exactly as if its entries
+were ordinary keywords, and any `**` unpacking that cannot be
+statically resolved is itself a finding — opaque arguments cannot
+be proved safe, so the scan fails closed on them.

@@ -121,6 +121,39 @@ def _static_text(node):
     return None
 
 
+def _effective_keywords(node):
+    """(mapping, opaque) for a call's keyword arguments, with
+    `**` unpackings resolved statically where possible. Python's
+    AST represents a `**` unpacking as a keyword whose arg is
+    None and whose value is the unpacked expression. When that
+    expression is a literal dict with constant string keys, its
+    entries are evaluated exactly as if they had been written as
+    ordinary keywords. Any other `**` value — a name, a call, a
+    dict with non-constant or non-string keys, a nested `**` —
+    cannot be statically resolved: opaque is True, and every
+    guarded call family in this scan treats an opaque `**` as a
+    finding, because arguments that cannot be seen cannot be
+    proved safe. (Fix round 4: Path(TARGET).open(**{'mode':
+    'wb'}) truncated a file while the fix-3 scan, which inspected
+    only keywords with arg == 'mode', never saw the mode and
+    returned no findings.)"""
+    mapping = {}
+    opaque = False
+    for kw in node.keywords:
+        if kw.arg is not None:
+            mapping[kw.arg] = kw.value
+            continue
+        value = kw.value
+        if isinstance(value, ast.Dict) and all(
+                isinstance(k, ast.Constant) and isinstance(k.value, str)
+                for k in value.keys):
+            for k, v in zip(value.keys, value.values):
+                mapping[k.value] = v
+        else:
+            opaque = True
+    return mapping, opaque
+
+
 def _sqlite_connect_problem(node):
     """None when this sqlite3.connect(...) call is PROVABLY
     read-only, else a problem string. Provable means: the target is
@@ -138,14 +171,24 @@ def _sqlite_connect_problem(node):
     after a '#' starts no query at all (fix round 3,
     counterexample A: file:{TARGET}#?mode=ro executed a writable
     connect while the fix-2 scan, which searched for '?' across the
-    fragment boundary, returned no findings)."""
-    if not node.args:
+    fragment boundary, returned no findings). Keyword arguments
+    are read through _effective_keywords, so uri=True may arrive
+    via a statically literal `**` dict — and an unpacking that
+    cannot be statically resolved fails closed (fix round 4)."""
+    keywords, opaque = _effective_keywords(node)
+    if opaque:
+        return ("sqlite3.connect **kwargs cannot be statically"
+                " resolved — not provably read-only")
+    target_node = node.args[0] if node.args \
+        else keywords.get("database")
+    if target_node is None:
         return "sqlite3.connect without a target argument"
-    text = _static_text(node.args[0])
+    text = _static_text(target_node)
     if text is None:
         return "sqlite3.connect target is not statically known"
-    if not any(kw.arg == "uri" and isinstance(kw.value, ast.Constant)
-               and kw.value.value is True for kw in node.keywords):
+    uri_node = keywords.get("uri")
+    if not (isinstance(uri_node, ast.Constant)
+            and uri_node.value is True):
         return "sqlite3.connect without uri=True"
     if not text.startswith("file:"):
         return "sqlite3.connect target is not a file: URI"
@@ -189,11 +232,19 @@ def _method_open_problem(node):
     mode is Path.open's first parameter: no mode argument means
     the default 'r'; a fully constant mode free of w/a/x/+ is a
     read; a write-ish constant mode, or a mode that is not
-    statically known, fails closed."""
+    statically known, fails closed. The mode keyword is read
+    through _effective_keywords, so a statically literal
+    `**{'mode': ...}` dict is evaluated like an ordinary keyword
+    — and an unpacking that cannot be statically resolved fails
+    closed, since the mode may be hiding inside it (fix round 4,
+    counterexample: Path(TARGET).open(**{'mode': 'wb'}))."""
+    keywords, opaque = _effective_keywords(node)
+    if opaque:
+        return (".open() **kwargs cannot be statically resolved"
+                " — not provably a read open")
     mode_node = node.args[0] if node.args else None
-    for kw in node.keywords:
-        if kw.arg == "mode":
-            mode_node = kw.value
+    if "mode" in keywords:
+        mode_node = keywords["mode"]
     if mode_node is None:
         return None  # Path.open() default mode is 'r'
     mode = _static_text(mode_node)
@@ -221,6 +272,13 @@ def _write_path_problems(src):
       immutable=1 allowed, uri=True required; a substring match is
       never used, and the query is delimited the way SQLite
       delimits it: first '?' to first '#', fragment never query).
+    Keyword arguments of every guarded family above (bare open,
+    method .open, sqlite3.connect) are read through
+    _effective_keywords: a statically literal `**{...}` dict is
+    expanded and evaluated exactly as if its entries were ordinary
+    keywords, and any `**` unpacking that cannot be statically
+    resolved is itself a finding — opaque arguments cannot be
+    proved safe, so the scan fails closed on them (fix round 4).
     Returns a list of problem strings. An empty list means no write
     path was found BY THESE CHECKS — a broad net with executed
     negative controls, not a proof that none can exist."""
@@ -248,12 +306,16 @@ def _write_path_problems(src):
         elif isinstance(node, ast.Call):
             func = node.func
             if isinstance(func, ast.Name) and func.id == "open":
+                keywords, opaque = _effective_keywords(node)
+                if opaque:
+                    problems.append(
+                        "open() **kwargs cannot be statically"
+                        f" resolved (line {node.lineno})")
                 mode = None
                 if len(node.args) >= 2:
                     mode = _const_str(node.args[1])
-                for kw in node.keywords:
-                    if kw.arg == "mode":
-                        mode = _const_str(kw.value)
+                if "mode" in keywords:
+                    mode = _const_str(keywords["mode"])
                 if mode is not None and set(mode) & set("wax+"):
                     problems.append(
                         f"open() write mode {mode!r}"
@@ -776,6 +838,74 @@ class TestEntitlementEnforcement(Fixture):
             "import sqlite3\n"
             "sqlite3.connect('file:x.db?mode=ro&immutable=1#frag',"
             " uri=True)\n"), [])
+
+    def test_g_scan_catches_fix4_evasions(self):
+        # Fix round 4 (re-review verdict item 2, the sole remaining
+        # blocker): a `**` unpacking reaches a call as a keyword
+        # with arg=None, so the fix-3 checks — which inspected only
+        # keywords named 'mode'/'uri' — never saw the mode in
+        # Path(TARGET).open(**{'mode': 'wb'}), a snippet Codex
+        # EXECUTED for real (a 24-byte scratch file truncated to
+        # 0). Rule now: statically literal dict unpackings are
+        # expanded and evaluated as ordinary keywords; any
+        # unpacking that cannot be statically resolved is itself a
+        # finding, on every guarded family (bare open, method
+        # .open, sqlite3.connect).
+        kwargs_wb = ("from pathlib import Path\n"
+                     "Path(TARGET).open(**{'mode': 'wb'}).close()\n")
+        self.assertTrue(_write_path_problems(kwargs_wb))
+        # Executed for real, like the fix-3 controls: the snippet
+        # above truncates a pre-existing scratch file.
+        target = os.path.join(self.tmp.name, "kwargs_open_proof.bin")
+        with open(target, "wb") as f:
+            f.write(b"x" * 24)
+        from pathlib import Path
+        Path(target).open(**{"mode": "wb"}).close()
+        self.assertEqual(os.path.getsize(target), 0)
+        # A literal read-mode unpacking expands and is accepted —
+        # and the read itself works.
+        kwargs_rb = ("from pathlib import Path\n"
+                     "Path(TARGET).open(**{'mode': 'rb'}).close()\n")
+        self.assertEqual(_write_path_problems(kwargs_rb), [])
+        with open(target, "wb") as f:
+            f.write(b"payload")
+        with Path(target).open(**{"mode": "rb"}) as f:
+            self.assertEqual(f.read(), b"payload")
+        # An unpacking that cannot be statically resolved fails
+        # closed — a bare name, or a call building the dict.
+        self.assertTrue(_write_path_problems(
+            "from pathlib import Path\n"
+            "Path(TARGET).open(**OPTS).close()\n"))
+        self.assertTrue(_write_path_problems(
+            "from pathlib import Path\n"
+            "Path(TARGET).open(**dict(mode='wb')).close()\n"))
+        # The same expansion applies to the other guarded
+        # families. Bare open: a literal write-mode dict is a
+        # finding, a literal read-mode dict is not.
+        self.assertTrue(_write_path_problems(
+            "open(TARGET, **{'mode': 'w'})\n"))
+        self.assertEqual(_write_path_problems(
+            "open(TARGET, **{'mode': 'rb'})\n"), [])
+        # sqlite3.connect: uri=True arriving through a literal
+        # dict is honored — the production read-only URI form is
+        # accepted through kwargs, a writable mode is not.
+        self.assertEqual(_write_path_problems(
+            "import sqlite3\n"
+            "sqlite3.connect('file:x.db?mode=ro&immutable=1',"
+            " **{'uri': True})\n"), [])
+        self.assertTrue(_write_path_problems(
+            "import sqlite3\n"
+            "sqlite3.connect('file:x.db?mode=rw', **{'uri': True})\n"))
+        # An unresolvable target is still a finding when uri
+        # arrives through kwargs, and an opaque unpacking on a
+        # connect fails closed even beside an explicit uri=True.
+        self.assertTrue(_write_path_problems(
+            "import sqlite3\n"
+            "sqlite3.connect(SOME_NAME, **{'uri': True})\n"))
+        self.assertTrue(_write_path_problems(
+            "import sqlite3\n"
+            "sqlite3.connect('file:x.db?mode=ro', uri=True,"
+            " **OPTS)\n"))
 
     def test_spine_connection_close_is_deterministic(self):
         # Fix round 2 (re-review verdict item 3): the API caches its
