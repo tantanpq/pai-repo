@@ -121,6 +121,36 @@ def _static_text(node):
     return None
 
 
+def _merge_dict_display(node, mapping):
+    """Merge a literal dict display's entries into mapping,
+    RECURSIVELY: an entry whose key is None is a nested `**`
+    unpacking inside the display itself (the `{**BASE, 'mode':
+    ...}` shape), and it merges only when its value is itself a
+    literal dict display that merges cleanly. Returns False —
+    and the caller fails closed — when any layer cannot be
+    statically resolved: a key that is not a constant string, or
+    a nested `**` over anything but a literal dict display.
+    Entries merge in display order, so a later key overrides an
+    earlier one exactly as it does at runtime. Fix round 7: the
+    fix-4 expansion treated a `**` dict as one flat layer — its
+    all-constant-keys test rejected a display containing a nested
+    `**` wholesale (opaque, safe but blunt) and, more to the
+    point, the normalizer had no rule at all for nested
+    unpacking; the positional side's version of that hole is
+    this round's blocking counterexample."""
+    for k, v in zip(node.keys, node.values):
+        if k is None:  # nested ** inside the dict display
+            if isinstance(v, ast.Dict) \
+                    and _merge_dict_display(v, mapping):
+                continue
+            return False
+        if isinstance(k, ast.Constant) and isinstance(k.value, str):
+            mapping[k.value] = v
+        else:
+            return False
+    return True
+
+
 def _effective_keywords(node):
     """(mapping, opaque) for a call's keyword arguments, with
     `**` unpackings resolved statically where possible. Python's
@@ -136,7 +166,13 @@ def _effective_keywords(node):
     proved safe. (Fix round 4: Path(TARGET).open(**{'mode':
     'wb'}) truncated a file while the fix-3 scan, which inspected
     only keywords with arg == 'mode', never saw the mode and
-    returned no findings.)"""
+    returned no findings.) A `**` whose value is a dict display
+    that itself contains nested `**` entries merges layer by
+    layer through _merge_dict_display — statically only when
+    every layer is a literal dict with constant string keys —
+    and any layer that cannot be merged makes the whole `**`
+    opaque (fix round 7, the keyword-side mirror of the nested
+    positional unpacking in _effective_arguments)."""
     mapping = {}
     opaque = False
     for kw in node.keywords:
@@ -144,14 +180,40 @@ def _effective_keywords(node):
             mapping[kw.arg] = kw.value
             continue
         value = kw.value
-        if isinstance(value, ast.Dict) and all(
-                isinstance(k, ast.Constant) and isinstance(k.value, str)
-                for k in value.keys):
-            for k, v in zip(value.keys, value.values):
-                mapping[k.value] = v
+        if isinstance(value, ast.Dict):
+            merged = {}
+            if _merge_dict_display(value, merged):
+                mapping.update(merged)
+            else:
+                opaque = True
         else:
             opaque = True
     return mapping, opaque
+
+
+def _splice_sequence(elts, out):
+    """Splice the elements of a literal tuple/list display into
+    out, RECURSIVELY: an element that is itself a Starred over a
+    literal tuple/list is spliced in turn, at any depth — Python
+    evaluates nested unpacking recursively, so the normalizer
+    must too. Returns False when a nested Starred wraps anything
+    else (a name, a call, any non-literal): that element cannot
+    be statically resolved, and it is NEVER passed through into
+    the normalized binding raw — the caller marks the call
+    opaque and fails closed. Fix round 7: the fix-6 splice was
+    one level deep (`positional.extend(value.elts)`), so in
+    `open(*(*(TARGET, 'wb'),))` the inner tuple's Starred
+    element survived normalization as a positional element of
+    type Starred with opaque=False, and the bare-open branch
+    read the surviving single element as an omitted mode."""
+    for elt in elts:
+        if isinstance(elt, ast.Starred):
+            if isinstance(elt.value, (ast.Tuple, ast.List)) \
+                    and _splice_sequence(elt.value.elts, out):
+                continue
+            return False
+        out.append(elt)
+    return True
 
 
 def _effective_arguments(node):
@@ -178,20 +240,49 @@ def _effective_arguments(node):
     while the method family (which passed its first argument,
     Starred included, to the shared judgment) caught its own
     starred form. With one normalizer feeding every family,
-    there is no second extraction path left to drift."""
+    there is no second extraction path left to drift. The
+    splice and the keyword merge are RECURSIVE (fix round 7):
+    the fix-6 splice expanded only the outer unpacking, so
+    `open(*(*(TARGET, 'wb'),))` — a Starred whose tuple's sole
+    element is itself a Starred — normalized to one positional
+    element of type Starred with opaque=False, and the
+    bare-open branch again inferred an omitted mode from the
+    short binding while the real call truncated a file (the
+    method family caught its nested form only because the
+    surviving Starred happened to reach _mode_problem). The
+    normalizer therefore also enforces a STRUCTURAL INVARIANT
+    before returning: no positional element may still be an
+    ast.Starred and no keyword key may be an unexpanded marker
+    — any survivor forces opaque, so extraction code downstream
+    can never again mistake an unexpanded unpacking for an
+    omitted argument."""
     positional = []
     opaque = False
     for arg in node.args:
         if isinstance(arg, ast.Starred):
             value = arg.value
             if isinstance(value, (ast.Tuple, ast.List)):
-                positional.extend(value.elts)
+                spliced = []
+                if _splice_sequence(value.elts, spliced):
+                    positional.extend(spliced)
+                else:
+                    opaque = True
             else:
                 opaque = True
         else:
             positional.append(arg)
     keywords, kw_opaque = _effective_keywords(node)
-    return positional, keywords, opaque or kw_opaque
+    opaque = opaque or kw_opaque
+    # Structural invariant (fix round 7): nothing unexpanded
+    # survives normalization. By construction the recursive
+    # splice never emits a Starred and the keyword mapping only
+    # ever carries constant string keys; this check states the
+    # invariant at the normalizer's exit so a future extraction
+    # change cannot silently reintroduce the leak.
+    if any(isinstance(p, ast.Starred) for p in positional) \
+            or any(k is None for k in keywords):
+        opaque = True
+    return positional, keywords, opaque
 
 
 def _sqlite_connect_problem(node):
@@ -362,7 +453,16 @@ def _write_path_problems(src):
     become the second, driftable path). Any unpacking, positional
     or keyword, that cannot be statically resolved is itself a
     finding — opaque arguments cannot be proved safe, so the scan
-    fails closed on them.
+    fails closed on them. The normalization is recursive
+    (fix round 7): a Starred nested inside a spliced literal
+    sequence splices in turn at any depth, a `**` dict display
+    containing nested `**` entries merges layer by layer, and
+    the normalizer enforces the invariant that no unexpanded
+    unpacking survives into the binding it returns — the fix-6
+    splice expanded only the outer layer, so
+    `open(*(*(TARGET, 'wb'),))` normalized to a single Starred
+    positional element and was once more misread as an omitted
+    mode.
     The sqlite family was audited for the same asymmetry in fix
     round 5 and already complies: an unprovable connect target
     is not a proven read-only URI, and a `uri` that is supplied
@@ -1145,6 +1245,84 @@ class TestEntitlementEnforcement(Fixture):
             "open(*(TARGET,))\n"), [])
         self.assertEqual(_write_path_problems(
             "some_function(*ARGS, **OPTS)\n"), [])
+
+    def test_g_scan_catches_fix7_evasions(self):
+        # Fix round 7 (re-review verdict item 1, the sole remaining
+        # blocker): fix 6's normalizer expanded only the OUTER
+        # unpacking — `positional.extend(value.elts)` — so the
+        # verdict's executed counterexample
+        #     open(*(*(TARGET, 'wb'),)).close()
+        # normalized to ONE positional element that was itself an
+        # ast.Starred, with opaque=False; the bare-open branch saw
+        # fewer than two elements and once more read an explicit
+        # runtime write mode as omitted. The method family caught
+        # its nested form only because the surviving Starred
+        # reached _mode_problem. What was missing is the invariant
+        # that NOTHING unexpanded survives normalization. The
+        # splice is now recursive on both sides — a Starred nested
+        # inside a literal tuple/list splices in turn at any
+        # depth, and a `**` dict display containing nested `**`
+        # entries merges only when every layer is a literal dict
+        # with constant string keys — and the normalizer enforces
+        # the invariant at its exit: any unexpanded survivor
+        # forces opaque, i.e. a finding in every guarded family.
+        nested_wb = "open(*(*(TARGET, 'wb'),)).close()\n"
+        self.assertTrue(_write_path_problems(nested_wb))
+        # Executed for real, mirroring the verdict: the snippet
+        # truncates a pre-existing 24-byte scratch file to 0.
+        target = os.path.join(self.tmp.name, "nested_proof.bin")
+        with open(target, "wb") as f:
+            f.write(b"x" * 24)
+        open(*(*(target, "wb"),)).close()
+        self.assertEqual(os.path.getsize(target), 0)
+        # Triple nesting resolves the same way.
+        self.assertTrue(_write_path_problems(
+            "open(*(*(*(TARGET, 'wb'),),)).close()\n"))
+        # Judged by content, not rejected wholesale: the nested
+        # form carrying a read mode is accepted — and the read
+        # itself works.
+        nested_rb = "open(*(*(TARGET, 'rb'),)).close()\n"
+        self.assertEqual(_write_path_problems(nested_rb), [])
+        with open(target, "wb") as f:
+            f.write(b"payload")
+        with open(*(*(target, "rb"),)) as f:
+            self.assertEqual(f.read(), b"payload")
+        # A non-constant value inside the nesting is supplied but
+        # unprovable: fail closed — fix round 5's rule, one level
+        # deeper.
+        self.assertTrue(_write_path_problems(
+            "MODE = 'wb'\nopen(*(*(TARGET, MODE),)).close()\n"))
+        # A nested Starred over a non-literal cannot be resolved:
+        # opaque, fail closed — never passed through raw into the
+        # binding.
+        self.assertTrue(_write_path_problems(
+            "open(*(*(TARGET, *REST),)).close()\n"))
+        # Keyword-side mirror: a `**` argument whose dict display
+        # itself unpacks a literal dict merges statically, layer
+        # by layer, and is judged by the merged content...
+        self.assertTrue(_write_path_problems(
+            "open(TARGET, **{**{'mode': 'wb'}}).close()\n"))
+        self.assertEqual(_write_path_problems(
+            "open(TARGET, **{**{'mode': 'rb'}}).close()\n"), [])
+        # ...while a nested `**` over a non-literal stays opaque
+        # even when every visible entry looks like a read.
+        self.assertTrue(_write_path_problems(
+            "open(TARGET, **{**BASE, 'mode': 'rb'})\n"))
+        # The method family goes through the same recursion: its
+        # nested write form stays caught, and its nested read
+        # form is now judged by content and accepted.
+        self.assertTrue(_write_path_problems(
+            "from pathlib import Path\n"
+            "Path(TARGET).open(*(*('wb',),)).close()\n"))
+        self.assertEqual(_write_path_problems(
+            "from pathlib import Path\n"
+            "Path(TARGET).open(*(*('rb',),)).close()\n"), [])
+        # Connect family through the recursive normalizer: a
+        # nested starred read-only URI is accepted by content.
+        self.assertEqual(_write_path_problems(
+            "import sqlite3\n"
+            "sqlite3.connect(*(*('file:x.db?mode=ro',),),"
+            " uri=True)\n"), [])
 
     def test_spine_connection_close_is_deterministic(self):
         # Fix round 2 (re-review verdict item 3): the API caches its

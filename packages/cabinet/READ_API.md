@@ -100,4 +100,12 @@ positional sequence, so a mode or target delivered by unpacking is
 judged by its content (`open(*(TARGET, 'wb'))` is a write open,
 `open(*(TARGET, 'rb'))` is a read), and any positional unpacking
 that cannot be statically resolved fails closed the same way —
-it could hide or shift the very slots being judged.
+it could hide or shift the very slots being judged. The
+normalization is recursive: a Starred nested inside a spliced
+literal sequence splices in turn at any depth, a `**` dict
+display containing nested `**` entries merges layer by layer
+(statically only when every layer is a literal dict with
+constant string keys), and the normalizer enforces the
+invariant that no unexpanded unpacking survives into the
+binding it returns — any survivor fails closed rather than
+being mistaken for an omitted argument.
