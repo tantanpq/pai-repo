@@ -108,6 +108,13 @@
      "registry_line": 18,
      "relation": "primary",
      "system": "claim-register"
+    },
+    {
+     "id": "sp-20261102-simlab-core-push-window-04-05-11---cmm-p-5d16ce",
+     "kind": "planning-task",
+     "registry_line": 210,
+     "relation": "secondary",
+     "system": "vm-spine"
     }
    ]
   },
@@ -1000,9 +1007,9 @@
   }
  },
  "generated_from": {
-  "generated_at": "2026-11-05T19:57:26-08:00",
-  "registry_head_sha256": "5370e59e9c1f52e2db9535cff7919f21cc9e0dd4aa143322ad1e5fa2787c1cbe",
-  "registry_lines": 209
+  "generated_at": "2026-11-05T20:40:53-08:00",
+  "registry_head_sha256": "9409f554d4da8a75507101841466b6003bdd8286f80532001076a965f09f497b",
+  "registry_lines": 210
  },
  "members": {
   "claim-register:C-0027": {
@@ -1490,6 +1497,13 @@
    "relation": "primary"
   },
   "vm-spine:sp-20261102-simlab-core-push-window-04-05-11---cmm-p-5d16ce": {
+   "also": [
+    {
+     "cabinet_id": "cab-0005",
+     "registry_line": 210,
+     "relation": "secondary"
+    }
+   ],
    "cabinet_id": "cab-0040",
    "registry_line": 145,
    "relation": "primary"

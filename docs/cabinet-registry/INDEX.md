@@ -6,7 +6,7 @@ only on this surface and in projections — never in registry history lines
 (spec §6 history rule). A record is always cited by its native
 (owning-system, ID) pair; a Cabinet ID names a work area only.
 
-- Accepted head: `5370e59e9c1f52e2db9535cff7919f21cc9e0dd4aa143322ad1e5fa2787c1cbe` · 209 registry lines · projection rebuilt 2026-11-05T19:57:26-08:00 from the accepted fold
+- Accepted head: `9409f554d4da8a75507101841466b6003bdd8286f80532001076a965f09f497b` · 210 registry lines · projection rebuilt 2026-11-05T20:40:53-08:00 from the accepted fold
 
 ## Cabinets
 
@@ -16,7 +16,7 @@ only on this surface and in projections — never in registry history lines
 | cab-0002 | user-owned-continuity | vm-spine: sp-20261102-m2-user-owned-continuity--claim-c-0032-348d11 — primary<br>claim-register: C-0032 — primary |
 | cab-0003 | verified-capability-lifecycle | vm-spine: sp-20261102-m8-verified-capability-lifecycle---libra-9a6cbe — primary<br>claim-register: C-0033 — primary |
 | cab-0004 | commercial-sequence | vm-spine: sp-20261102-commercial-sequence-plan-v2--claim-c-007-d1bbdb — primary<br>claim-register: C-0070 — primary<br>claim-register: C-0082 — primary |
-| cab-0005 | simlab-paid-test | vm-spine: sp-20261102-simlab-core--49-paid-test--claims-c-0071-a71ada — primary<br>claim-register: C-0071 — primary<br>claim-register: C-0072 — primary |
+| cab-0005 | simlab-paid-test | vm-spine: sp-20261102-simlab-core--49-paid-test--claims-c-0071-a71ada — primary<br>claim-register: C-0071 — primary<br>claim-register: C-0072 — primary<br>vm-spine: sp-20261102-simlab-core-push-window-04-05-11---cmm-p-5d16ce — secondary |
 | cab-0006 | commercial-decision-3a | vm-spine: sp-20261102-commercial-decision-3a---cheap-paid-test-86c810 — primary<br>claim-register: C-0075 — primary |
 | cab-0007 | pai-spine-kit | vm-spine: sp-20261102-pai-spine-kit-phase-a--claim-c-0080--gom-39b3b7 — primary<br>claim-register: C-0080 — primary<br>claim-register: C-0081 — primary |
 | cab-0008 | public-task-inbox | vm-spine: sp-20261102-domain-public-task-inbox---watch--5-tool-7e91dc — primary<br>claim-register: C-0103 — primary |
@@ -82,14 +82,14 @@ only on this surface and in projections — never in registry history lines
 ## Coverage
 
 - Cabinets minted: 66 (cab-0001…cab-0066).
-- Active memberships: 105 — 103 primary, 2 secondary. Per system: claim-register 25, claim-service 1, home-runloop 14, vm-spine 65.
+- Active memberships: 106 — 103 primary, 3 secondary. Per system: claim-register 25, claim-service 1, home-runloop 14, vm-spine 66.
 
 ## Pending exhibits (not stamped — no Cabinet ID)
 
 - **M8 ↔ Store / Domain / Library pair relation** — PENDING a human decision.
   Members concerned: vm-spine: sp-20261102-m8-verified-capability-lifecycle---libra-9a6cbe (primary member of cab-0003 via its
   C-0033 citation — that membership proceeds) and vm-spine: sp-20261102-domain--store---domain---library--design-27b44f
-  (not a Step 1 member). Evidence: the M8 task's spine title records a
+  (now primary in cab-0024 on its own Store / Domain / Library census provenance; the M8–Store pair relation remains pending Tân's decision). Evidence: the M8 task's spine title records a
   "suspected overlap" with the Store / Domain / Library task (title segment in
   `pai-repo-program/phase3/step1-evidence/SPINE_SEGMENTS.json`); Phase 0
   crosswalk appendix rows 49 and 43; backfill plan Step 1 ambiguity flag.
@@ -126,3 +126,28 @@ only on this surface and in projections — never in registry history lines
   joining those units to the current QCHECK work area, so their work area
   stays unknown and is never guessed. Gap classes: identifier absent from
   the owning store's current census; work-area membership not evidenced.
+
+- **SL-4 (cab-0045) ↔ capsule-framework (cab-0031)** — unstamped candidate:
+  a direct work-area relation is NOT established. SL-4's actual spine title
+  is "SL-4 thread/checkpoint lifecycle - muc 6 gate + chua build (tu SO-CAI
+  L107)", and frozen SO-CAI L112 describes SL-4's thread/checkpoint
+  lifecycle ("Vòng đời thread/checkpoint — chống phình dữ liệu (SL-4)");
+  frozen L107 names SL-1, not SL-4 ("KHUNG CAPSULE + ĐX1/ĐX4 + SL-1
+  (PAI–Leona)"), so L107 does not prove this relation. No LINK is recorded.
+
+- **SimLab push-window (cab-0040) ↔ simlab-paid-test (cab-0005)** — the
+  explicit evidence at frozen SO-CAI L119–121 names SimLab Core $49, the
+  04–05 November push window and the 13 November CMM pilot milestone
+  together. The evidenced optional secondary is RECORDED: the push-window
+  task (vm-spine: sp-20261102-simlab-core-push-window-04-05-11---cmm-p-5d16ce)
+  is stamped as a secondary member of cab-0005 (registry line 210), under
+  Leona's recorded delegation decision
+  `pai-repo-program/phase3/STEP3_SIMLAB_SECONDARY_DECISION_2026-11-05.md`;
+  the LINK's evidence binds the frozen L119–121 segment by digest. This
+  exhibit is retained as the relation's record; it is no longer pending.
+
+- **Home/device ops (cab-0066) ↔ camera-watch (cab-0046)** — unstamped
+  resemblance-only candidate. Frozen SO-CAI L109 concerns Tapo C100 /
+  Camera Account home actuation (in the HOME-CP row); frozen L127 concerns
+  Canon EOS R / Phu Tran camera shopping. The titles do not share a Tapo
+  subject; no relation is recorded.
