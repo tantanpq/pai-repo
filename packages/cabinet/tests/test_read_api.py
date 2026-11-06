@@ -130,7 +130,15 @@ def _sqlite_connect_problem(node):
     value is fully constant and exactly 'ro' (immutable=1 and the
     inert comment parameter are the only other recognized
     parameters). The fix-1 scan's substring test was evaded by
-    mode=rwc&comment=mode=ro; real parsing is immune to that."""
+    mode=rwc&comment=mode=ro; real parsing is immune to that.
+    Query/fragment boundaries follow SQLite's own grammar: the
+    query runs from the first '?' to the first '#' or end of
+    string, and everything from '#' on is fragment, which SQLite
+    never treats as query parameters — so a '?' that only appears
+    after a '#' starts no query at all (fix round 3,
+    counterexample A: file:{TARGET}#?mode=ro executed a writable
+    connect while the fix-2 scan, which searched for '?' across the
+    fragment boundary, returned no findings)."""
     if not node.args:
         return "sqlite3.connect without a target argument"
     text = _static_text(node.args[0])
@@ -142,11 +150,16 @@ def _sqlite_connect_problem(node):
     if not text.startswith("file:"):
         return "sqlite3.connect target is not a file: URI"
     rest = text[len("file:"):]
-    qmark = rest.find("?")
+    hashmark = rest.find("#")
+    head = rest if hashmark < 0 else rest[:hashmark]
+    qmark = head.find("?")
     if qmark < 0:
+        if hashmark >= 0:
+            return ("sqlite3.connect URI fragment precedes any query"
+                    " string — not provably read-only")
         return "sqlite3.connect URI has no query string"
     params = {}
-    for pair in rest[qmark + 1:].split("&"):
+    for pair in head[qmark + 1:].split("&"):
         if not pair:
             continue
         key, _, val = pair.partition("=")
@@ -167,12 +180,38 @@ def _sqlite_connect_problem(node):
     return None
 
 
+def _method_open_problem(node):
+    """None when this <expr>.open(...) call is provably a read-mode
+    open, else a problem string. This is the pathlib Path.open
+    shape (fix round 3, counterexample B: Path(TARGET).open('wb')
+    executed a truncating open while the fix-2 scan returned no
+    findings — its mode check covered only a bare Name open). The
+    mode is Path.open's first parameter: no mode argument means
+    the default 'r'; a fully constant mode free of w/a/x/+ is a
+    read; a write-ish constant mode, or a mode that is not
+    statically known, fails closed."""
+    mode_node = node.args[0] if node.args else None
+    for kw in node.keywords:
+        if kw.arg == "mode":
+            mode_node = kw.value
+    if mode_node is None:
+        return None  # Path.open() default mode is 'r'
+    mode = _static_text(mode_node)
+    if mode is None or _GAP in mode:
+        return ".open() mode is not statically known"
+    if set(mode) & set("wax+"):
+        return f".open() write mode {mode!r}"
+    return None
+
+
 def _write_path_problems(src):
     """AST scan of read_api.py for store/filesystem write paths.
     Checks, over the module's AST:
     - imports of subprocess/shutil, and from-imports of the
       Registrar's write entry points;
-    - open(...) with a constant mode containing w/a/x/+;
+    - open(...) with a constant mode containing w/a/x/+, and
+      method .open(...) calls (the pathlib Path.open shape) whose
+      mode is write-ish or not statically known;
     - attribute calls named like a write/mutation entry point
       (including the pathlib mutation family: touch, write_text,
       write_bytes, mkdir, unlink, rename, replace, ...);
@@ -180,7 +219,8 @@ def _write_path_problems(src):
     - sqlite3.connect(...) whose target is not a PROVABLY read-only
       file: URI (the query is parsed for real — mode exactly 'ro',
       immutable=1 allowed, uri=True required; a substring match is
-      never used).
+      never used, and the query is delimited the way SQLite
+      delimits it: first '?' to first '#', fragment never query).
     Returns a list of problem strings. An empty list means no write
     path was found BY THESE CHECKS — a broad net with executed
     negative controls, not a proof that none can exist."""
@@ -227,6 +267,11 @@ def _write_path_problems(src):
                 if func.attr in _FORBIDDEN_CALL_ATTRS:
                     problems.append(
                         f"call .{func.attr}() (line {node.lineno})")
+                if func.attr == "open":
+                    problem = _method_open_problem(node)
+                    if problem is not None:
+                        problems.append(
+                            f"{problem} (line {node.lineno})")
                 dotted = _dotted(func)
                 if dotted is not None and dotted.startswith("os.") \
                         and not dotted.startswith("os.path.") \
@@ -459,20 +504,21 @@ class TestEntitlementEnforcement(Fixture):
         api = self.api()
         out = api.resolve("claim-register", "C-9003")
         self.assertTrue(out["forgotten"])
-        self.assertIsNone(out["content"])
-        self.assertEqual(out["content_excluded"], "forgotten")
-        # Tombstone-only shape (fix round 2): a forgotten member's
-        # cabinets/linkage and privacy are not published at all.
-        self.assertNotIn("cabinets", out)
-        self.assertNotIn("effective_privacy", out)
-        self.assertNotIn("privacy_basis", out)
+        # Forgotten resolve returns the shared purged entry — the
+        # exact five-key tombstone shape, with no content keys at
+        # all (fix round 3: the round-2 hand-built variant added
+        # content/content_excluded; the shared shape is the
+        # contract).
+        self.assertEqual(set(out), {"system", "namespace", "id",
+                                    "forgotten", "tombstone"})
         self.assertEqual(out["tombstone"]["id"], "C-9003")
         # C-9004 is still LINKed in the registry but forgotten in its
         # own ledger: tombstone wins, content never readable.
         out = api.resolve("claim-register", "C-9004")
         self.assertTrue(out["forgotten"])
+        self.assertEqual(set(out), {"system", "namespace", "id",
+                                    "forgotten", "tombstone"})
         self.assertEqual(out["tombstone"]["id"], "C-9004")
-        self.assertIsNone(out["content"])
         cab = api.cabinet("cab-0001")
         self.assertEqual(cab["members"], [])
         self.assertEqual([m["id"] for m in cab["purged_members"]],
@@ -499,7 +545,8 @@ class TestEntitlementEnforcement(Fixture):
         api = self.api()
         out = api.resolve("claim-register", "C-9202")
         self.assertTrue(out["forgotten"])
-        self.assertIsNone(out["content"])
+        self.assertEqual(set(out), {"system", "namespace", "id",
+                                    "forgotten", "tombstone"})
         cab = api.cabinet("cab-0001")
         self.assertEqual([m["id"] for m in cab["members"]], ["C-9201"])
         self.assertEqual([m["id"] for m in cab["purged_members"]],
@@ -550,11 +597,17 @@ class TestEntitlementEnforcement(Fixture):
         self.assertEqual(set(by_id["C-9202"]),
                          {"system", "namespace", "id", "forgotten",
                           "tombstone"})
-        # resolve(): no privacy, basis, kind or linkage keys at all.
+        # resolve(): the EXACT top-level key set is the shared
+        # five-key purged shape — no privacy, basis, kind, linkage
+        # or content keys at all. (Fix round 3: round 2 asserted
+        # only selected absent keys here, and a hand-built variant
+        # carrying content/content_excluded passed; the exact set
+        # is the assertion that closes that gap.)
         out = api.resolve("claim-register", "C-9202")
-        for key in ("effective_privacy", "privacy_basis", "kind",
-                    "cabinets", "member"):
-            self.assertNotIn(key, out)
+        self.assertEqual(set(out), {"system", "namespace", "id",
+                                    "forgotten", "tombstone"})
+        self.assertEqual(set(out["tombstone"]),
+                         {"system", "id", "forget_at", "actor"})
         # Serialized hunt on every surface: the stale privacy value
         # appears nowhere, and the forgotten member's LINK line (3)
         # is not published as a registry_line in the cabinet (the
@@ -654,6 +707,75 @@ class TestEntitlementEnforcement(Fixture):
               "c = sqlite3.connect("
               "f'file:{p}?mode=ro&immutable=1', uri=True)\n")
         self.assertEqual(_write_path_problems(ro), [])
+
+    def test_g_scan_catches_fix3_evasions(self):
+        # Fix round 3 (re-review verdict item 3): the two write
+        # paths Codex EXECUTED against the fix-2 scan must now
+        # produce findings. Both are also executed for real below,
+        # against scratch targets in the fixture temp dir, to prove
+        # they are genuine write paths and not theoretical shapes.
+        # (A) SQLite fragment: in file:{TARGET}#?mode=ro the
+        # '?mode=ro' sits in the FRAGMENT — SQLite applies no
+        # read-only mode and opens a writable database.
+        frag = ("import sqlite3\n"
+                "c = sqlite3.connect(f'file:{TARGET}#?mode=ro',"
+                " uri=True)\n")
+        self.assertTrue(_write_path_problems(frag))
+        # Fragment with no query anywhere is likewise not provably
+        # read-only.
+        self.assertTrue(_write_path_problems(
+            "import sqlite3\n"
+            "sqlite3.connect('file:x.db#frag', uri=True)\n"))
+        target_a = os.path.join(self.tmp.name, "frag_proof.db")
+        conn = sqlite3.connect(f"file:{target_a}#?mode=ro", uri=True)
+        conn.execute("CREATE TABLE proof(x)")
+        conn.commit()
+        conn.close()
+        check = sqlite3.connect(f"file:{target_a}?mode=ro&immutable=1",
+                                uri=True)
+        try:
+            self.assertEqual(
+                check.execute("SELECT name FROM sqlite_master"
+                              " WHERE name='proof'").fetchone()[0],
+                "proof")
+        finally:
+            check.close()
+        # (B) pathlib write-mode open: Path.open is an Attribute
+        # call; the fix-2 mode check covered only a bare Name open.
+        wb = ("from pathlib import Path\n"
+              "Path(TARGET).open('wb').close()\n")
+        self.assertTrue(_write_path_problems(wb))
+        self.assertTrue(_write_path_problems(
+            "from pathlib import Path\n"
+            "Path(TARGET).open(mode='ab').close()\n"))
+        # A mode that is not statically known fails closed.
+        self.assertTrue(_write_path_problems(
+            "from pathlib import Path\n"
+            "Path(TARGET).open(MODE).close()\n"))
+        target_b = os.path.join(self.tmp.name, "open_proof.bin")
+        with open(target_b, "wb") as f:
+            f.write(b"data")
+        from pathlib import Path
+        Path(target_b).open("wb").close()  # truncates, as Codex ran
+        self.assertEqual(os.path.getsize(target_b), 0)
+        # Positive controls: read-mode and default pathlib opens
+        # are not findings, the production URI form stays accepted,
+        # and a fragment AFTER a complete genuine query is inert
+        # (SQLite ends the query at '#').
+        self.assertEqual(_write_path_problems(
+            "from pathlib import Path\n"
+            "Path(TARGET).open('rb').close()\n"), [])
+        self.assertEqual(_write_path_problems(
+            "from pathlib import Path\n"
+            "Path(TARGET).open().close()\n"), [])
+        self.assertEqual(_write_path_problems(
+            "import sqlite3\n"
+            "c = sqlite3.connect("
+            "f'file:{p}?mode=ro&immutable=1', uri=True)\n"), [])
+        self.assertEqual(_write_path_problems(
+            "import sqlite3\n"
+            "sqlite3.connect('file:x.db?mode=ro&immutable=1#frag',"
+            " uri=True)\n"), [])
 
     def test_spine_connection_close_is_deterministic(self):
         # Fix round 2 (re-review verdict item 3): the API caches its

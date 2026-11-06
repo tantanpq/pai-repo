@@ -428,19 +428,14 @@ class ReadAPI:
         forgotten, tombstone = self._forgotten(system, native_id)
         if forgotten:
             # Rule 6: a forgotten record surfaces ONLY as a
-            # tombstone. Its privacy level and basis are not even
-            # computed here, and no kind or linkage metadata is
-            # published (gate re-review fix round 2, item 2).
-            return {
-                "system": system,
-                "namespace": CONTRACT_NAMESPACE[system],
-                "id": native_id,
-                "forgotten": True,
-                "tombstone": _tombstone_public(tombstone, system,
-                                               native_id),
-                "content": None,
-                "content_excluded": "forgotten",
-            }
+            # tombstone, in the single shared purged-entry shape —
+            # the same object cabinet() and members() publish. Its
+            # privacy level and basis are not even computed here,
+            # and no kind, linkage, or content metadata is added
+            # (gate re-review fix rounds 2–3, item 1/2: an earlier
+            # hand-built variant added content/content_excluded
+            # keys; the shared shape is the contract).
+            return _purged_entry(system, native_id, tombstone)
         entries = self._index.get((system, native_id), [])
         level, basis = self._effective_level(system, native_id)
         out = {
