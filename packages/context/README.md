@@ -4,4 +4,4 @@ Responsibility: One shared library for context packaging: compiler/reducer/curso
 
 Contract dependencies: contracts/context-package.md · contracts/host-qualification.md
 
-Status: Phase 1 skeleton — implementation lands in its phase.
+Status: Phase 4 implemented 2026-11-06 (Slices 1–5: usage-ledger core `ledger.py`/`rollup.py`, pack assembler `pack.py`, component adapters `components.py`, lane instrumentation + shadow mode `shadow.py`, gate machinery `gate.py` — machinery only; the real gate week and the GATE_METHOD freeze wait for the 2026-11-14 review). See `~/workspace/pai-repo-program/phase4/PHASE4_BUILD_CLOSURE_2026-11-06.md`.
