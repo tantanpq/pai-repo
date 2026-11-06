@@ -505,41 +505,6 @@
      "registry_line": 97,
      "relation": "primary",
      "system": "vm-spine"
-    },
-    {
-     "id": "sp-20261102-domain--mission---taskbox--partial----da-7d4412",
-     "kind": "planning-task",
-     "registry_line": 98,
-     "relation": "primary",
-     "system": "vm-spine"
-    },
-    {
-     "id": "sp-20261102-domain--assurance--partial----w1-not-rea-4ca862",
-     "kind": "planning-task",
-     "registry_line": 99,
-     "relation": "primary",
-     "system": "vm-spine"
-    },
-    {
-     "id": "sp-20261102-domain--second-life--designed-only----la-4661a6",
-     "kind": "planning-task",
-     "registry_line": 100,
-     "relation": "primary",
-     "system": "vm-spine"
-    },
-    {
-     "id": "sp-20261102-domain--chief-gov--built-off----keep-off-d3aa08",
-     "kind": "planning-task",
-     "registry_line": 101,
-     "relation": "primary",
-     "system": "vm-spine"
-    },
-    {
-     "id": "sp-20261102-domain--pai-personal--built-off----retir-c9af69",
-     "kind": "planning-task",
-     "registry_line": 102,
-     "relation": "primary",
-     "system": "vm-spine"
     }
    ]
   },
@@ -551,41 +516,6 @@
      "registry_line": 104,
      "relation": "primary",
      "system": "vm-spine"
-    },
-    {
-     "id": "sp-20261102-domain--tom-tom-creative--partial----4-k-9a6f60",
-     "kind": "planning-task",
-     "registry_line": 105,
-     "relation": "primary",
-     "system": "vm-spine"
-    },
-    {
-     "id": "sp-20261102-domain--tom-optics--partial----1-ku--gan-db3b51",
-     "kind": "planning-task",
-     "registry_line": 106,
-     "relation": "primary",
-     "system": "vm-spine"
-    },
-    {
-     "id": "sp-20261102-domain--tom-spc-grr--partial----1-ku--ce-022485",
-     "kind": "planning-task",
-     "registry_line": 107,
-     "relation": "primary",
-     "system": "vm-spine"
-    },
-    {
-     "id": "sp-20261102-domain--tom-calypso--designed-only----th-451f8d",
-     "kind": "planning-task",
-     "registry_line": 108,
-     "relation": "primary",
-     "system": "vm-spine"
-    },
-    {
-     "id": "sp-20261102-domain--tom-python-metrology--designed-o-878a28",
-     "kind": "planning-task",
-     "registry_line": 109,
-     "relation": "primary",
-     "system": "vm-spine"
     }
    ]
   },
@@ -595,13 +525,6 @@
      "id": "sp-20261102-domain--image-generation--partial----ide-60d23f",
      "kind": "planning-task",
      "registry_line": 111,
-     "relation": "primary",
-     "system": "vm-spine"
-    },
-    {
-     "id": "sp-20261102-domain--image-editing--partial----chua-d-b6602f",
-     "kind": "planning-task",
-     "registry_line": 112,
      "relation": "primary",
      "system": "vm-spine"
     }
@@ -624,13 +547,6 @@
      "id": "sp-20261102-domain--cybersecurity--partial----t3-1-s-c69d32",
      "kind": "planning-task",
      "registry_line": 116,
-     "relation": "primary",
-     "system": "vm-spine"
-    },
-    {
-     "id": "sp-20261102-domain--home---device-ops--partial----ac-e3de64",
-     "kind": "planning-task",
-     "registry_line": 117,
      "relation": "primary",
      "system": "vm-spine"
     }
@@ -949,12 +865,144 @@
      "system": "vm-spine"
     }
    ]
+  },
+  "cab-0055": {
+   "members": [
+    {
+     "id": "sp-20261102-domain--mission---taskbox--partial----da-7d4412",
+     "kind": "planning-task",
+     "registry_line": 187,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0056": {
+   "members": [
+    {
+     "id": "sp-20261102-domain--assurance--partial----w1-not-rea-4ca862",
+     "kind": "planning-task",
+     "registry_line": 189,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0057": {
+   "members": [
+    {
+     "id": "sp-20261102-domain--second-life--designed-only----la-4661a6",
+     "kind": "planning-task",
+     "registry_line": 191,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0058": {
+   "members": [
+    {
+     "id": "sp-20261102-domain--chief-gov--built-off----keep-off-d3aa08",
+     "kind": "planning-task",
+     "registry_line": 193,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0059": {
+   "members": [
+    {
+     "id": "sp-20261102-domain--pai-personal--built-off----retir-c9af69",
+     "kind": "planning-task",
+     "registry_line": 195,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0060": {
+   "members": [
+    {
+     "id": "sp-20261102-domain--tom-tom-creative--partial----4-k-9a6f60",
+     "kind": "planning-task",
+     "registry_line": 197,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0061": {
+   "members": [
+    {
+     "id": "sp-20261102-domain--tom-optics--partial----1-ku--gan-db3b51",
+     "kind": "planning-task",
+     "registry_line": 199,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0062": {
+   "members": [
+    {
+     "id": "sp-20261102-domain--tom-spc-grr--partial----1-ku--ce-022485",
+     "kind": "planning-task",
+     "registry_line": 201,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0063": {
+   "members": [
+    {
+     "id": "sp-20261102-domain--tom-calypso--designed-only----th-451f8d",
+     "kind": "planning-task",
+     "registry_line": 203,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0064": {
+   "members": [
+    {
+     "id": "sp-20261102-domain--tom-python-metrology--designed-o-878a28",
+     "kind": "planning-task",
+     "registry_line": 205,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0065": {
+   "members": [
+    {
+     "id": "sp-20261102-domain--image-editing--partial----chua-d-b6602f",
+     "kind": "planning-task",
+     "registry_line": 207,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
+  },
+  "cab-0066": {
+   "members": [
+    {
+     "id": "sp-20261102-domain--home---device-ops--partial----ac-e3de64",
+     "kind": "planning-task",
+     "registry_line": 209,
+     "relation": "primary",
+     "system": "vm-spine"
+    }
+   ]
   }
  },
  "generated_from": {
-  "generated_at": "2026-11-05T19:35:53-08:00",
-  "registry_head_sha256": "55f42799e126fff2f541b393669014b88a07b2d8ae0341297c464eea792344fd",
-  "registry_lines": 173
+  "generated_at": "2026-11-05T19:57:26-08:00",
+  "registry_head_sha256": "5370e59e9c1f52e2db9535cff7919f21cc9e0dd4aa143322ad1e5fa2787c1cbe",
+  "registry_lines": 209
  },
  "members": {
   "claim-register:C-0027": {
@@ -1223,13 +1271,13 @@
    "relation": "primary"
   },
   "vm-spine:sp-20261102-domain--assurance--partial----w1-not-rea-4ca862": {
-   "cabinet_id": "cab-0024",
-   "registry_line": 99,
+   "cabinet_id": "cab-0056",
+   "registry_line": 189,
    "relation": "primary"
   },
   "vm-spine:sp-20261102-domain--chief-gov--built-off----keep-off-d3aa08": {
-   "cabinet_id": "cab-0024",
-   "registry_line": 101,
+   "cabinet_id": "cab-0058",
+   "registry_line": 193,
    "relation": "primary"
   },
   "vm-spine:sp-20261102-domain--cybersecurity--partial----t3-1-s-c69d32": {
@@ -1238,13 +1286,13 @@
    "relation": "primary"
   },
   "vm-spine:sp-20261102-domain--home---device-ops--partial----ac-e3de64": {
-   "cabinet_id": "cab-0028",
-   "registry_line": 117,
+   "cabinet_id": "cab-0066",
+   "registry_line": 209,
    "relation": "primary"
   },
   "vm-spine:sp-20261102-domain--image-editing--partial----chua-d-b6602f": {
-   "cabinet_id": "cab-0026",
-   "registry_line": 112,
+   "cabinet_id": "cab-0065",
+   "registry_line": 207,
    "relation": "primary"
   },
   "vm-spine:sp-20261102-domain--image-generation--partial----ide-60d23f": {
@@ -1265,18 +1313,18 @@
    "relation": "primary"
   },
   "vm-spine:sp-20261102-domain--mission---taskbox--partial----da-7d4412": {
-   "cabinet_id": "cab-0024",
-   "registry_line": 98,
+   "cabinet_id": "cab-0055",
+   "registry_line": 187,
    "relation": "primary"
   },
   "vm-spine:sp-20261102-domain--pai-personal--built-off----retir-c9af69": {
-   "cabinet_id": "cab-0024",
-   "registry_line": 102,
+   "cabinet_id": "cab-0059",
+   "registry_line": 195,
    "relation": "primary"
   },
   "vm-spine:sp-20261102-domain--second-life--designed-only----la-4661a6": {
-   "cabinet_id": "cab-0024",
-   "registry_line": 100,
+   "cabinet_id": "cab-0057",
+   "registry_line": 191,
    "relation": "primary"
   },
   "vm-spine:sp-20261102-domain--store---domain---library--design-27b44f": {
@@ -1285,28 +1333,28 @@
    "relation": "primary"
   },
   "vm-spine:sp-20261102-domain--tom-calypso--designed-only----th-451f8d": {
-   "cabinet_id": "cab-0025",
-   "registry_line": 108,
+   "cabinet_id": "cab-0063",
+   "registry_line": 203,
    "relation": "primary"
   },
   "vm-spine:sp-20261102-domain--tom-optics--partial----1-ku--gan-db3b51": {
-   "cabinet_id": "cab-0025",
-   "registry_line": 106,
+   "cabinet_id": "cab-0061",
+   "registry_line": 199,
    "relation": "primary"
   },
   "vm-spine:sp-20261102-domain--tom-python-metrology--designed-o-878a28": {
-   "cabinet_id": "cab-0025",
-   "registry_line": 109,
+   "cabinet_id": "cab-0064",
+   "registry_line": 205,
    "relation": "primary"
   },
   "vm-spine:sp-20261102-domain--tom-spc-grr--partial----1-ku--ce-022485": {
-   "cabinet_id": "cab-0025",
-   "registry_line": 107,
+   "cabinet_id": "cab-0062",
+   "registry_line": 201,
    "relation": "primary"
   },
   "vm-spine:sp-20261102-domain--tom-tom-creative--partial----4-k-9a6f60": {
-   "cabinet_id": "cab-0025",
-   "registry_line": 105,
+   "cabinet_id": "cab-0060",
+   "registry_line": 197,
    "relation": "primary"
   },
   "vm-spine:sp-20261102-domain--tom-vision--partial----corpus-mo-0e06bb": {
