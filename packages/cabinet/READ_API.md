@@ -86,4 +86,11 @@ arguments of every guarded call family (bare `open`, method
 `**{...}` dict is expanded and evaluated exactly as if its entries
 were ordinary keywords, and any `**` unpacking that cannot be
 statically resolved is itself a finding — opaque arguments cannot
-be proved safe, so the scan fails closed on them.
+be proved safe, so the scan fails closed on them. The same
+supplied-but-unprovable rule governs the VALUES those arguments
+carry, uniformly in every guarded family: an open mode (or a
+connect target / `uri`) that is supplied but not fully statically
+known — a name, a call, an interpolated f-string, including a
+value arriving inside an expanded literal dict — is a finding,
+never a skip; only an omitted mode (the default read) or a proven
+read-only constant passes.

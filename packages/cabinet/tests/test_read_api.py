@@ -223,6 +223,30 @@ def _sqlite_connect_problem(node):
     return None
 
 
+def _mode_problem(mode_node, label):
+    """None when a SUPPLIED open mode is provably read-only, else
+    a problem string. Provable means the mode text is fully
+    statically known — a constant, or an f-string whose spans are
+    all constant — and free of w/a/x/+. A supplied mode that
+    cannot be statically proved safe — a write-ish constant, or
+    any non-constant value (a name, a call, an interpolated
+    f-string), whether written directly or arriving as the value
+    inside an expanded literal `**` dict — fails closed. This one
+    rule is shared verbatim by the bare open() branch and
+    _method_open_problem: fix round 5 exists because the bare
+    branch alone judged the mode with _const_str and treated a
+    supplied-but-unprovable value as no mode at all (verdict
+    counterexample: MODE = 'wb'; open(TARGET, **{'mode': MODE})
+    truncated a file while the scan returned no findings; the
+    method family already failed closed for the same value)."""
+    text = _static_text(mode_node)
+    if text is None or _GAP in text:
+        return f"{label} mode is not statically known"
+    if set(text) & set("wax+"):
+        return f"{label} write mode {text!r}"
+    return None
+
+
 def _method_open_problem(node):
     """None when this <expr>.open(...) call is provably a read-mode
     open, else a problem string. This is the pathlib Path.open
@@ -237,7 +261,10 @@ def _method_open_problem(node):
     `**{'mode': ...}` dict is evaluated like an ordinary keyword
     — and an unpacking that cannot be statically resolved fails
     closed, since the mode may be hiding inside it (fix round 4,
-    counterexample: Path(TARGET).open(**{'mode': 'wb'}))."""
+    counterexample: Path(TARGET).open(**{'mode': 'wb'})). The
+    mode judgment itself is _mode_problem, shared verbatim with
+    the bare open() branch so the two families cannot drift
+    apart (fix round 5)."""
     keywords, opaque = _effective_keywords(node)
     if opaque:
         return (".open() **kwargs cannot be statically resolved"
@@ -247,12 +274,7 @@ def _method_open_problem(node):
         mode_node = keywords["mode"]
     if mode_node is None:
         return None  # Path.open() default mode is 'r'
-    mode = _static_text(mode_node)
-    if mode is None or _GAP in mode:
-        return ".open() mode is not statically known"
-    if set(mode) & set("wax+"):
-        return f".open() write mode {mode!r}"
-    return None
+    return _mode_problem(mode_node, ".open()")
 
 
 def _write_path_problems(src):
@@ -260,9 +282,16 @@ def _write_path_problems(src):
     Checks, over the module's AST:
     - imports of subprocess/shutil, and from-imports of the
       Registrar's write entry points;
-    - open(...) with a constant mode containing w/a/x/+, and
-      method .open(...) calls (the pathlib Path.open shape) whose
-      mode is write-ish or not statically known;
+    - open(...) and method .open(...) calls (the pathlib
+      Path.open shape) whose SUPPLIED mode is not provably
+      read-only: a write-ish constant, or any value that is not
+      fully statically known (a name, a call, an interpolated
+      f-string), whether written directly or arriving as the
+      value inside an expanded literal `**` dict — one rule
+      (_mode_problem) for both families, so a supplied mode can
+      never again be silently read as no mode in one family
+      while failing closed in the other (fix round 5). An
+      omitted mode is the default read and passes;
     - attribute calls named like a write/mutation entry point
       (including the pathlib mutation family: touch, write_text,
       write_bytes, mkdir, unlink, rename, replace, ...);
@@ -279,6 +308,11 @@ def _write_path_problems(src):
     keywords, and any `**` unpacking that cannot be statically
     resolved is itself a finding — opaque arguments cannot be
     proved safe, so the scan fails closed on them (fix round 4).
+    The sqlite family was audited for the same asymmetry in fix
+    round 5 and already complies: an unprovable connect target
+    is not a proven read-only URI, and a `uri` that is supplied
+    but is not the constant True is not uri=True — both are
+    findings, never skips.
     Returns a list of problem strings. An empty list means no write
     path was found BY THESE CHECKS — a broad net with executed
     negative controls, not a proof that none can exist."""
@@ -311,15 +345,16 @@ def _write_path_problems(src):
                     problems.append(
                         "open() **kwargs cannot be statically"
                         f" resolved (line {node.lineno})")
-                mode = None
+                mode_node = None
                 if len(node.args) >= 2:
-                    mode = _const_str(node.args[1])
+                    mode_node = node.args[1]
                 if "mode" in keywords:
-                    mode = _const_str(keywords["mode"])
-                if mode is not None and set(mode) & set("wax+"):
-                    problems.append(
-                        f"open() write mode {mode!r}"
-                        f" (line {node.lineno})")
+                    mode_node = keywords["mode"]
+                if mode_node is not None:
+                    problem = _mode_problem(mode_node, "open()")
+                    if problem is not None:
+                        problems.append(
+                            f"{problem} (line {node.lineno})")
             if bare_sqlite_connect and isinstance(func, ast.Name) \
                     and func.id == "connect":
                 problem = _sqlite_connect_problem(node)
@@ -906,6 +941,63 @@ class TestEntitlementEnforcement(Fixture):
             "import sqlite3\n"
             "sqlite3.connect('file:x.db?mode=ro', uri=True,"
             " **OPTS)\n"))
+
+    def test_g_scan_catches_fix5_evasions(self):
+        # Fix round 5 (re-review verdict item 1, the sole remaining
+        # blocker): _effective_keywords expands a literal `**` dict
+        # by its constant string KEYS, but the bare-open branch
+        # then judged the mode VALUE with _const_str and treated a
+        # non-constant value as no mode at all — so the verdict's
+        # executed counterexample
+        #     MODE = 'wb'; open(TARGET, **{'mode': MODE})
+        # truncated a 24-byte file while the scan returned []. The
+        # method .open family already failed closed for the same
+        # unknown value; the asymmetry was the defect. Rule now,
+        # uniform across bare open() and method .open() through the
+        # shared _mode_problem (and audited for sqlite3.connect):
+        # a SUPPLIED safety-relevant value that cannot be
+        # statically proved safe is a finding, never a skip.
+        kwargs_name = ("MODE = 'wb'\n"
+                       "open(TARGET, **{'mode': MODE}).close()\n")
+        self.assertTrue(_write_path_problems(kwargs_name))
+        # Executed for real, mirroring the verdict: the snippet
+        # truncates a pre-existing 24-byte scratch file to 0.
+        target = os.path.join(self.tmp.name,
+                              "kwargs_mode_name_proof.bin")
+        with open(target, "wb") as f:
+            f.write(b"x" * 24)
+        MODE = "wb"
+        open(target, **{"mode": MODE}).close()
+        self.assertEqual(os.path.getsize(target), 0)
+        # The same unprovable mode fails closed in every position:
+        # bare open positional, a direct non-constant keyword mode,
+        # and the method family through an expanded literal dict
+        # (alignment proof for the shared rule).
+        self.assertTrue(_write_path_problems("open(TARGET, MODE)\n"))
+        self.assertTrue(_write_path_problems(
+            "open(TARGET, mode=MODE)\n"))
+        self.assertTrue(_write_path_problems(
+            "from pathlib import Path\n"
+            "Path(TARGET).open(**{'mode': MODE}).close()\n"))
+        # Acceptances preserved: a positional constant read mode,
+        # and the omitted mode (the default read).
+        self.assertEqual(_write_path_problems(
+            "open(TARGET, 'rb')\n"), [])
+        self.assertEqual(_write_path_problems("open(TARGET)\n"), [])
+        # Connect-side audit: a target or uri supplied with an
+        # unprovable value already failed closed before this round
+        # — an unprovable target is not a proven read-only URI,
+        # and a uri that is not the constant True is not uri=True.
+        # These controls pin that behavior so the families cannot
+        # drift apart again.
+        self.assertTrue(_write_path_problems(
+            "import sqlite3\n"
+            "sqlite3.connect('file:x.db?mode=ro',"
+            " **{'uri': FLAG})\n"))
+        self.assertTrue(_write_path_problems(
+            "import sqlite3\n"
+            "sqlite3.connect(**{'database': SOME_NAME,"
+            " 'uri': True})\n"))
 
     def test_spine_connection_close_is_deterministic(self):
         # Fix round 2 (re-review verdict item 3): the API caches its
