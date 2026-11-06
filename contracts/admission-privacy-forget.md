@@ -34,6 +34,14 @@ deterministic.
    is likewise `house` for all inheritance purposes. An explicit field always
    wins; namespaces other than claim-register, home-runloop and
    home-claim-service have no default.
+
+   **Extension to the vm-spine namespace (adopted by Leona, 2026-11-05 —
+   `docs/decisions/ADOPTION_2026-11-05_VMSPINE_HOUSE_DEFAULT.md`):** an
+   unmarked record in the `vm-spine` namespace is likewise `house` for all
+   inheritance purposes. An explicit field always wins; namespaces other
+   than claim-register, home-runloop, home-claim-service and vm-spine have
+   no default. The C1 record's scope sentence is superseded in part by the
+   two extensions; the decision records themselves are not edited.
 5. Agent-private stores (Codex, Grok, Gemini/Antigravity, Claude histories)
    are outside PAI namespaces. Only explicit, scoped, provenance-preserving
    exports from them may be admitted; raw histories are never merged.
