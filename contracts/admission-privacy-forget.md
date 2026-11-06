@@ -27,6 +27,13 @@ deterministic.
    as policy the default the Phase 2 retrieval implementation applies in code
    (namespace `room:decisions`). An explicit field always wins; other
    namespaces are unaffected.
+
+   **Extension to the HOME namespaces (decided by Tan, 2026-11-05 —
+   `docs/decisions/DECISION_2026-11-05_HOME_NAMESPACES_HOUSE_DEFAULT.md`):**
+   an unmarked record in the `home-runloop` or `home-claim-service` namespace
+   is likewise `house` for all inheritance purposes. An explicit field always
+   wins; namespaces other than claim-register, home-runloop and
+   home-claim-service have no default.
 5. Agent-private stores (Codex, Grok, Gemini/Antigravity, Claude histories)
    are outside PAI namespaces. Only explicit, scoped, provenance-preserving
    exports from them may be admitted; raw histories are never merged.
