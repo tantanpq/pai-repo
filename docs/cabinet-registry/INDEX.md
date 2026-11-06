@@ -6,7 +6,7 @@ only on this surface and in projections — never in registry history lines
 (spec §6 history rule). A record is always cited by its native
 (owning-system, ID) pair; a Cabinet ID names a work area only.
 
-- Accepted head: `aa12dca6771821f7669e0473218b52a96c80c586f397c168e65046d3702b57a4` · 93 registry lines · projection rebuilt 2026-11-05T15:43:42-08:00 from the accepted fold
+- Accepted head: `b86a3c9391076e68a32fddcfe1e3b71814c8fbffea3ce590be51c5b9fc0c6b4c` · 95 registry lines · projection rebuilt 2026-11-05T17:04:47-08:00 from the accepted fold
 
 ## Cabinets
 
@@ -33,13 +33,13 @@ only on this surface and in projections — never in registry history lines
 | cab-0019 | lesson-publish | home-runloop: lesson-publish:cmm-lesson-17 — primary<br>home-runloop: lesson-publish:cmm-lesson-18 — primary<br>home-runloop: lesson-publish:cmm-lesson-19 — primary<br>home-runloop: lesson-publish:cmm-lesson-20 — primary<br>home-runloop: lesson-publish:cmm-lesson-21 — primary<br>home-runloop: lesson-publish:cmm-lesson-22 — primary<br>home-runloop: lesson-publish:cmm-lesson-23 — primary<br>home-runloop: lesson-publish-shadow:cmm-lesson-17 — primary |
 | cab-0020 | authority-gate-test | home-runloop: authority-gate-test:mf-atest-f03b — primary<br>home-runloop: authority-gate-test:mf-atest-f03c — primary<br>home-runloop: authority-gate-test:mf-atest-f03d — primary |
 | cab-0021 | receipt-withhold-test | home-runloop: receipt-withhold-test:mf-atest-f01t3a — primary |
-| cab-0022 | simple_body_r1 | home-runloop: simple_body_r1:PAI_AUTONOMY_WAVE_R1_QCHECK_WORK_R0 — primary<br>claim-service: claim_38cd9a9a-5ba4-402a-aab0-59312f1f3c3b — primary<br>claim-service: claim_422e685a-54c7-4864-92ac-a9728dd84eaf — primary<br>claim-service: claim_42530e14-b016-41d8-bd71-2da289e04692 — primary |
+| cab-0022 | simple_body_r1 | home-runloop: simple_body_r1:PAI_AUTONOMY_WAVE_R1_QCHECK_WORK_R0 — primary<br>claim-service: claim_38cd9a9a-5ba4-402a-aab0-59312f1f3c3b — primary |
 | cab-0023 | organ-health-probe | home-runloop: organ-health-probe — primary |
 
 ## Coverage
 
 - Cabinets minted: 23 (cab-0001…cab-0023).
-- Active memberships: 60 — 59 primary, 1 secondary. Per system: claim-register 25, claim-service 3, home-runloop 14, vm-spine 18.
+- Active memberships: 58 — 57 primary, 1 secondary. Per system: claim-register 25, claim-service 1, home-runloop 14, vm-spine 18.
 
 ## Pending exhibits (not stamped — no Cabinet ID)
 
@@ -63,10 +63,21 @@ only on this surface and in projections — never in registry history lines
   holds from this population ARE stamped (cab-0022), and the simple_body_r1 family
   relationship is recorded there. Gap class: no counterpart in the current
   population / historical trace only. Evidence: `pai-repo-program/phase3/step2-evidence/HOME_CENSUS.json`.
-- **September simple_body_r1 work units named in the holds' evidence** —
+- **September simple_body_r1 work units named in the holds' evidence, and the
+  two resident-held claims bound to them** —
   `simple_body_r1:RESIDENT_TERMINAL_EVIDENCE_R2_REPAIR_R1` and
   `simple_body_r1:SEED_SC3_CODEC_PREP_R1` exist only as lifecycle-trace records,
-  not as rows in the run loop's current claims/dispatches census; they are named
-  inside their claims' LINK evidence (cab-0022) and are not stamped as
-  home-runloop members. Gap class: identifier absent from the owning store's
-  current census.
+  not as rows in the run loop's current claims/dispatches census, and are not
+  stamped as home-runloop members. The resident-observed holds claim-service:
+  claim_422e685a-54c7-4864-92ac-a9728dd84eaf (CLAIMED receipt, trace seq 8916,
+  binds it to RESIDENT_TERMINAL_EVIDENCE_R2_REPAIR_R1) and claim-service:
+  claim_42530e14-b016-41d8-bd71-2da289e04692 (seq 8968, binds it to
+  SEED_SC3_CODEC_PREP_R1) are recorded here as members-pending-evidence:
+  their Step 2 primary LINKs into cab-0022 (registry lines 90–91) were
+  reversed by targeted UNLINK (registry lines 94–95, Codex review finding
+  F01, correction rationale in
+  `pai-repo-program/phase3/STEP2_F01_RATIONALE.md`) — the receipts tie each
+  claim to its September work unit, and no HOME record states a lineage
+  joining those units to the current QCHECK work area, so their work area
+  stays unknown and is never guessed. Gap classes: identifier absent from
+  the owning store's current census; work-area membership not evidenced.

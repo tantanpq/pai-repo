@@ -483,20 +483,6 @@
      "registry_line": 89,
      "relation": "primary",
      "system": "claim-service"
-    },
-    {
-     "id": "claim_422e685a-54c7-4864-92ac-a9728dd84eaf",
-     "kind": "execution-claim",
-     "registry_line": 90,
-     "relation": "primary",
-     "system": "claim-service"
-    },
-    {
-     "id": "claim_42530e14-b016-41d8-bd71-2da289e04692",
-     "kind": "execution-claim",
-     "registry_line": 91,
-     "relation": "primary",
-     "system": "claim-service"
     }
    ]
   },
@@ -513,9 +499,9 @@
   }
  },
  "generated_from": {
-  "generated_at": "2026-11-05T15:43:42-08:00",
-  "registry_head_sha256": "aa12dca6771821f7669e0473218b52a96c80c586f397c168e65046d3702b57a4",
-  "registry_lines": 93
+  "generated_at": "2026-11-05T17:04:47-08:00",
+  "registry_head_sha256": "b86a3c9391076e68a32fddcfe1e3b71814c8fbffea3ce590be51c5b9fc0c6b4c",
+  "registry_lines": 95
  },
  "members": {
   "claim-register:C-0027": {
@@ -646,16 +632,6 @@
   "claim-service:claim_38cd9a9a-5ba4-402a-aab0-59312f1f3c3b": {
    "cabinet_id": "cab-0022",
    "registry_line": 89,
-   "relation": "primary"
-  },
-  "claim-service:claim_422e685a-54c7-4864-92ac-a9728dd84eaf": {
-   "cabinet_id": "cab-0022",
-   "registry_line": 90,
-   "relation": "primary"
-  },
-  "claim-service:claim_42530e14-b016-41d8-bd71-2da289e04692": {
-   "cabinet_id": "cab-0022",
-   "registry_line": 91,
    "relation": "primary"
   },
   "home-runloop:authority-gate-test:mf-atest-f03b": {
