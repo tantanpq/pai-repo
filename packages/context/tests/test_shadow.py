@@ -54,12 +54,12 @@ def write_job(jobs_dir, job_key, brief_id="drive-id-1", status="done",
     job = os.path.join(jobs_dir, job_key)
     os.makedirs(job)
     with open(os.path.join(job, "receipt.json"), "w",
-              encoding="utf-8") as f:
+              encoding="utf-8", newline="") as f:
         json.dump({"job_key": job_key, "brief_id": brief_id,
                    "status": status, "started_at": started,
                    "ended_at": ended}, f)
     with open(os.path.join(job, "stdout.log"), "w",
-              encoding="utf-8") as f:
+              encoding="utf-8", newline="") as f:
         for u in usage_events:
             f.write(json.dumps({"type": "turn.completed",
                                 "usage": u}) + "\n")
@@ -319,7 +319,7 @@ class TestHitPath(unittest.TestCase):
         if not os.path.isfile(canonical):
             self.skipTest("canonical claimreg module unavailable")
         shutil.copyfile(canonical, self.claimreg_copy)
-        with open(self.claims_log, "w", encoding="utf-8") as f:
+        with open(self.claims_log, "w", encoding="utf-8", newline="") as f:
             for c in (_claim("C-S001"), _claim("C-S002")):
                 f.write(json.dumps(
                     {"event": "ADMIT", "at": "2026-11-06T08:00:00+00:00",
@@ -442,7 +442,7 @@ class TestReplay(unittest.TestCase):
                              turns=0),  # done, receipt, NO usage
                 snapshot_job("lane-d-44444444", status="error"),
             ]
-            with open(snap, "w", encoding="utf-8") as f:
+            with open(snap, "w", encoding="utf-8", newline="") as f:
                 json.dump({"source": "fixture", "jobs": jobs}, f)
             ledger_path = os.path.join(td, "replay.jsonl")
             report = S.replay(
@@ -478,7 +478,7 @@ class TestReplay(unittest.TestCase):
     def test_replay_refuses_existing_stream(self):
         with tempfile.TemporaryDirectory() as td:
             ledger_path = os.path.join(td, "replay.jsonl")
-            with open(ledger_path, "w", encoding="utf-8") as f:
+            with open(ledger_path, "w", encoding="utf-8", newline="") as f:
                 f.write("{}\n")
             with self.assertRaises(ValueError):
                 S.replay(os.path.join(td, "nope.json"), ledger_path)

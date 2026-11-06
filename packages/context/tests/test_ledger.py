@@ -353,7 +353,7 @@ class TestBrokenChain(unittest.TestCase):
         with open(path, encoding="utf-8") as f:
             lines = f.read().splitlines()
         lines[idx] = mutate(lines[idx])
-        with open(path, "w", encoding="utf-8") as f:
+        with open(path, "w", encoding="utf-8", newline="") as f:
             f.write("\n".join(lines) + "\n")
 
     def test_tampered_content_detected_rows_named_stream_excluded(self):
@@ -444,7 +444,7 @@ def write_raw_stream(path, events):
         line = L.serialize_event(ev)
         lines.append(line)
         head = L.line_hash(line.encode("utf-8"))
-    with open(path, "w", encoding="utf-8") as f:
+    with open(path, "w", encoding="utf-8", newline="") as f:
         f.write("\n".join(lines) + ("\n" if lines else ""))
     return path
 
@@ -498,7 +498,7 @@ class TestHeadCommitmentF1(unittest.TestCase):
         self.assertIn('"input": 1000', lines[-1])
         lines[-1] = lines[-1].replace('"input": 1000',
                                       '"input": 999999')
-        with open(path, "w", encoding="utf-8") as f:
+        with open(path, "w", encoding="utf-8", newline="") as f:
             f.write("\n".join(lines) + "\n")
         s = R.rollup([path])
         self.assertTrue(s["streams"][0]["chain_ok"])  # chain blind
@@ -518,7 +518,7 @@ class TestHeadCommitmentF1(unittest.TestCase):
         path, _, _ = self._four_serves(tmp)
         with open(path, encoding="utf-8") as f:
             lines = f.read().splitlines()
-        with open(path, "w", encoding="utf-8") as f:
+        with open(path, "w", encoding="utf-8", newline="") as f:
             f.write("\n".join(lines[:-1]) + "\n")
         s = R.rollup([path])
         self.assertEqual(s["gate_valid_totals"]["events"], 0)
@@ -842,7 +842,7 @@ class TestReportNotesF7F8(unittest.TestCase):
         with open(path, encoding="utf-8") as f:
             lines = f.read().splitlines()
         lines[1] = lines[1].replace("4200", "9999")  # chain break
-        with open(path, "w", encoding="utf-8") as f:
+        with open(path, "w", encoding="utf-8", newline="") as f:
             f.write("\n".join(lines) + "\n")
         s = R.rollup([path])
         self.assertEqual(len(s["excluded_streams"]), 1)
@@ -890,7 +890,7 @@ class TestWriterHeadGateR1(unittest.TestCase):
             lines = f.read().splitlines()
         lines[-1] = lines[-1].replace('"input": 1000',
                                       '"input": 999999')
-        with open(path, "w", encoding="utf-8") as f:
+        with open(path, "w", encoding="utf-8", newline="") as f:
             f.write("\n".join(lines) + "\n")
         stream_bytes = self._bytes(path)
         sidecar_bytes = self._bytes(sidecar)
@@ -917,7 +917,7 @@ class TestWriterHeadGateR1(unittest.TestCase):
         path, _ = self._four_serves(tmp)
         with open(path, encoding="utf-8") as f:
             lines = f.read().splitlines()
-        with open(path, "w", encoding="utf-8") as f:
+        with open(path, "w", encoding="utf-8", newline="") as f:
             f.write("\n".join(lines[:-1]) + "\n")
         with self.assertRaises(L.LedgerError):
             L.LedgerWriter(path, "msi")
@@ -995,7 +995,7 @@ class TestWriterHeadGateR1(unittest.TestCase):
         tmp = tempfile.mkdtemp(prefix="ledger-r1f-")
         path, _ = self._four_serves(tmp)
         with open(L.head_sidecar_path(path), "w",
-                  encoding="utf-8") as f:
+                  encoding="utf-8", newline="") as f:
             f.write("not json{{{")
         stream_bytes = self._bytes(path)
         with self.assertRaises(L.LedgerError):
@@ -1117,7 +1117,7 @@ class TestSidecarLastEventIdR5(unittest.TestCase):
         with open(sidecar, encoding="utf-8") as f:
             commitment = json.load(f)
         commitment["last_event_id"] = "msi-999999"
-        with open(sidecar, "w", encoding="utf-8") as f:
+        with open(sidecar, "w", encoding="utf-8", newline="") as f:
             f.write(json.dumps(commitment, sort_keys=True) + "\n")
         s = R.rollup([path])
         self.assertEqual(s["streams"][0]["head_commitment"],

@@ -102,7 +102,7 @@ class Fixture(unittest.TestCase):
         return out
 
     def write_claims(self, claims, extra_events=()):
-        with open(self.claims_log, "w", encoding="utf-8") as f:
+        with open(self.claims_log, "w", encoding="utf-8", newline="") as f:
             for c in claims:
                 f.write(json.dumps(
                     {"event": "ADMIT", "at": "2026-11-06T08:00:00+00:00",
@@ -926,7 +926,7 @@ class TestSidecarHeadCommitment(Fixture):
 
     def test_corrupt_sidecar_refused(self):
         self._assemble_v1()
-        with open(self._sidecar_path(), "w", encoding="utf-8") as fh:
+        with open(self._sidecar_path(), "w", encoding="utf-8", newline="") as fh:
             fh.write("{not json")
         with self.assertRaises(P.PackError) as ctx:
             self.asm.serve("pack-m", HOUSE_CONSUMER)
@@ -936,7 +936,7 @@ class TestSidecarHeadCommitment(Fixture):
         self._assemble_v1()
         sc = self._sidecar()
         sc["line_count"] += 1
-        with open(self._sidecar_path(), "w", encoding="utf-8") as fh:
+        with open(self._sidecar_path(), "w", encoding="utf-8", newline="") as fh:
             json.dump(sc, fh)
         with self.assertRaises(P.PackError) as ctx:
             self.asm.serve("pack-m", HOUSE_CONSUMER)
