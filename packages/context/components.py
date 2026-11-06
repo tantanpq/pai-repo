@@ -633,7 +633,7 @@ class InProcessRetrievalTransport(Transport):
 
 # --- Live Node/SSH transport (HOME) ------------------------------------
 
-_HOME_HOST = "Tom@100.82.182.29"
+_HOME_HOST = os.environ.get("PAI_HOME_HOST", "")  # live-scaffolding target; set PAI_HOME_HOST to the HOME SSH target when reproducing
 _SSH_OPTS = ("-o", "ProxyCommand=nc -X connect -x hatch-egress-proxy:3130 %h %p",
              "-o", "ConnectTimeout=20",
              "-o", "UserKnownHostsFile=/home/hatch/.ssh/known_hosts",
